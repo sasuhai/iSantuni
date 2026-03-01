@@ -1,13 +1,14 @@
--- MariaDB Migration Schema for Mualaf Data System
+-- MARIADB MIGRATION SCHEMA
+-- For Hostinger Web Hosting
 
 -- USERS TABLE
 CREATE TABLE IF NOT EXISTS `users` (
-  `id` VARCHAR(36) PRIMARY KEY, -- Using VARCHAR(36) for UUIDs
+  `id` VARCHAR(36) PRIMARY KEY,
   `email` VARCHAR(255) UNIQUE,
-  `password_hash` VARCHAR(255), -- For custom auth
+  `password` VARCHAR(255), -- For custom auth
   `name` VARCHAR(255),
   `role` VARCHAR(50) DEFAULT 'editor',
-  `assignedLocations` TEXT, -- Stored as JSON string
+  `assignedLocations` JSON, -- Array of strings stored as JSON
   `createdAt` DATETIME DEFAULT CURRENT_TIMESTAMP,
   `updatedAt` DATETIME DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
@@ -25,21 +26,12 @@ CREATE TABLE IF NOT EXISTS `submissions` (
   `bangsa` VARCHAR(50),
   `agamaAsal` VARCHAR(50),
   `umur` DECIMAL(5,2),
+  `tarikhLahir` DATE,
   `warganegara` VARCHAR(100),
   `tarikhPengislaman` DATE,
   `masaPengislaman` VARCHAR(50),
   `tempatPengislaman` VARCHAR(255),
   `negeriPengislaman` VARCHAR(100),
-  `noTelefon` VARCHAR(50),
-  `alamatTinggal` TEXT,
-  `alamatTetap` TEXT,
-  `pekerjaan` VARCHAR(255),
-  `pendapatanBulanan` DECIMAL(15,2),
-  `tahapPendidikan` VARCHAR(100),
-  `lokasi` VARCHAR(255),
-  `namaPenuh` VARCHAR(255),
-  `registeredByName` VARCHAR(255),
-  `tarikhLahir` DATE,
   `namaPegawaiMengislamkan` VARCHAR(255),
   `noKPPegawaiMengislamkan` VARCHAR(50),
   `noTelPegawaiMengislamkan` VARCHAR(50),
@@ -49,17 +41,28 @@ CREATE TABLE IF NOT EXISTS `submissions` (
   `namaSaksi2` VARCHAR(255),
   `noKPSaksi2` VARCHAR(50),
   `noTelSaksi2` VARCHAR(50),
+  `noTelefon` VARCHAR(50),
+  `alamatTinggal` TEXT,
   `poskod` VARCHAR(20),
   `bandar` VARCHAR(100),
   `negeri` VARCHAR(100),
+  `alamatTetap` TEXT,
   `maklumatKenalanPengiring` TEXT,
+  `pekerjaan` VARCHAR(255),
+  `pendapatanBulanan` DECIMAL(15,2),
   `tanggungan` INT,
+  `tahapPendidikan` VARCHAR(100),
+  `lokasi` VARCHAR(255),
+  `namaPenuh` VARCHAR(255),
+  `registeredByName` VARCHAR(255),
   `bank` VARCHAR(100),
-  `noAkaun` VARCHAR(100),
+  `noAkaun` VARCHAR(50),
   `namaDiBank` VARCHAR(255),
   `kategoriElaun` VARCHAR(100),
-  
-  -- Document Files (Stored as JSON strings)
+  `status` VARCHAR(50) DEFAULT 'active',
+  `catatan` TEXT,
+  `catatanAudit` TEXT,
+  `pengislamanKPI` JSON,
   `gambarIC` JSON,
   `gambarKadIslam` JSON,
   `gambarSijilPengislaman` JSON,
@@ -68,12 +71,6 @@ CREATE TABLE IF NOT EXISTS `submissions` (
   `dokumenLain1` JSON,
   `dokumenLain2` JSON,
   `dokumenLain3` JSON,
-  
-  -- Metadata
-  `status` VARCHAR(50) DEFAULT 'active',
-  `catatan` TEXT,
-  `catatanAudit` TEXT,
-  `pengislamanKPI` JSON,
   `createdAt` DATETIME DEFAULT CURRENT_TIMESTAMP,
   `createdBy` VARCHAR(36),
   `updatedAt` DATETIME DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
@@ -81,65 +78,6 @@ CREATE TABLE IF NOT EXISTS `submissions` (
   `deletedAt` DATETIME
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
 
--- CLASSES TABLE
-CREATE TABLE IF NOT EXISTS `classes` (
-  `id` VARCHAR(36) PRIMARY KEY,
-  `lokasi` VARCHAR(255),
-  `negeri` VARCHAR(100),
-  `namaKelas` VARCHAR(255),
-  `createdAt` DATETIME DEFAULT CURRENT_TIMESTAMP,
-  `updatedAt` DATETIME DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP
-) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
-
--- WORKERS TABLE
-CREATE TABLE IF NOT EXISTS `workers` (
-  `id` VARCHAR(36) PRIMARY KEY,
-  `nama` VARCHAR(255),
-  `peranan` VARCHAR(100),
-  `lokasi` VARCHAR(255),
-  `createdAt` DATETIME DEFAULT CURRENT_TIMESTAMP,
-  `updatedAt` DATETIME DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP
-) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
-
--- ATTENDANCE RECORDS TABLE
-CREATE TABLE IF NOT EXISTS `attendance_records` (
-  `id` VARCHAR(100) PRIMARY KEY,
-  `classId` VARCHAR(36),
-  `year` VARCHAR(4),
-  `month` VARCHAR(2),
-  `students` JSON,
-  `workers` JSON,
-  `createdAt` DATETIME DEFAULT CURRENT_TIMESTAMP,
-  `updatedAt` DATETIME DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP
-) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
-
--- RATE CATEGORIES TABLE
-CREATE TABLE IF NOT EXISTS `rateCategories` (
-  `id` VARCHAR(36) PRIMARY KEY,
-  `kategori` VARCHAR(255),
-  `jenis` VARCHAR(100),
-  `createdAt` DATETIME DEFAULT CURRENT_TIMESTAMP,
-  `createdBy` VARCHAR(36),
-  `updatedAt` DATETIME DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
-  `updatedBy` VARCHAR(36)
-) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
-
--- KNOWLEDGE/LOOKUP TABLES (Example: states)
-CREATE TABLE IF NOT EXISTS `states` (
-  `id` INT AUTO_INCREMENT PRIMARY KEY,
-  `name` VARCHAR(100) UNIQUE,
-  `IDMualaf` VARCHAR(50)
-) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
-
--- KPI SETTINGS TABLE
-CREATE TABLE IF NOT EXISTS `kpi_settings` (
-  `id` INT AUTO_INCREMENT PRIMARY KEY,
-  `kpi_name` VARCHAR(255),
-  `category` VARCHAR(100),
-  `target` DECIMAL(15,2),
-  `year` INT,
-  `createdAt` DATETIME DEFAULT CURRENT_TIMESTAMP
-) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
 -- PROGRAMS TABLE
 CREATE TABLE IF NOT EXISTS `programs` (
   `id` VARCHAR(36) PRIMARY KEY,
@@ -153,10 +91,10 @@ CREATE TABLE IF NOT EXISTS `programs` (
   `masa_mula` TIME,
   `masa_tamat` TIME,
   `tempat` VARCHAR(255),
-  `kawasan_cawangan` JSON, -- Array of strings
-  `jenis_program` JSON, -- Array of strings
+  `kawasan_cawangan` JSON,
+  `jenis_program` JSON,
   `kategori_utama` VARCHAR(100),
-  `sub_kategori` JSON, -- Array of strings
+  `sub_kategori` JSON,
   `kehadiran_rh` INT DEFAULT 0,
   `kehadiran_daie` INT DEFAULT 0,
   `kehadiran_non_muslim` INT DEFAULT 0,
@@ -165,7 +103,7 @@ CREATE TABLE IF NOT EXISTS `programs` (
   `kehadiran_syahadah` INT DEFAULT 0,
   `kehadiran_muallaf` INT DEFAULT 0,
   `kehadiran_keseluruhan` INT DEFAULT 0,
-  `anjuran` JSON, -- Array of strings
+  `anjuran` JSON,
   `kawasan_ikram` VARCHAR(255),
   `link_facebook` VARCHAR(255),
   `catatan_1` TEXT,
@@ -175,13 +113,77 @@ CREATE TABLE IF NOT EXISTS `programs` (
   `updatedAt` DATETIME DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
 
--- PROGRAM LOOKUP TABLES
+-- CLASSES TABLE
+CREATE TABLE IF NOT EXISTS `classes` (
+  `id` VARCHAR(36) PRIMARY KEY,
+  `lokasi` VARCHAR(100),
+  `negeri` VARCHAR(100),
+  `namaKelas` VARCHAR(255),
+  `createdAt` DATETIME DEFAULT CURRENT_TIMESTAMP,
+  `updatedAt` DATETIME DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
+
+-- WORKERS TABLE
+CREATE TABLE IF NOT EXISTS `workers` (
+  `id" VARCHAR(36) PRIMARY KEY,
+  `nama` VARCHAR(255),
+  `peranan` VARCHAR(100),
+  `lokasi` VARCHAR(100),
+  `createdAt` DATETIME DEFAULT CURRENT_TIMESTAMP,
+  `updatedAt` DATETIME DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
+
+-- ATTENDANCE RECORDS TABLE
+CREATE TABLE IF NOT EXISTS `attendance_records` (
+  `id` VARCHAR(100) PRIMARY KEY,
+  `classId` VARCHAR(100),
+  `year` VARCHAR(4),
+  `month` VARCHAR(2),
+  `students` JSON,
+  `workers` JSON,
+  `createdAt` DATETIME DEFAULT CURRENT_TIMESTAMP,
+  `updatedAt` DATETIME DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
+
+-- RATE CATEGORIES TABLE
+CREATE TABLE IF NOT EXISTS `rateCategories` (
+  `id` VARCHAR(36) PRIMARY KEY,
+  `kategori` VARCHAR(255),
+  `jenis` VARCHAR(50),
+  `createdAt` DATETIME DEFAULT CURRENT_TIMESTAMP,
+  `createdBy` VARCHAR(36),
+  `updatedAt` DATETIME DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+  `updatedBy` VARCHAR(36)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
+
+-- KPI SETTINGS TABLE
+CREATE TABLE IF NOT EXISTS `kpi_settings` (
+  `id` INT AUTO_INCREMENT PRIMARY KEY,
+  `kpi_name` VARCHAR(255),
+  `category` VARCHAR(100),
+  `target` DECIMAL(15,2),
+  `year` INT,
+  `createdAt` DATETIME DEFAULT CURRENT_TIMESTAMP
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
+
+-- LOOKUP TABLES
+CREATE TABLE IF NOT EXISTS `states` (
+  `id` INT AUTO_INCREMENT PRIMARY KEY,
+  `name` VARCHAR(100) UNIQUE,
+  `IDMualaf` VARCHAR(50)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
+
 CREATE TABLE IF NOT EXISTS `program_status` (`id` INT AUTO_INCREMENT PRIMARY KEY, `name` VARCHAR(100) UNIQUE);
 CREATE TABLE IF NOT EXISTS `program_categories` (`id` INT AUTO_INCREMENT PRIMARY KEY, `name` VARCHAR(100) UNIQUE);
 CREATE TABLE IF NOT EXISTS `program_organizers` (`id` INT AUTO_INCREMENT PRIMARY KEY, `name` VARCHAR(100) UNIQUE);
 CREATE TABLE IF NOT EXISTS `program_types` (`id` INT AUTO_INCREMENT PRIMARY KEY, `name` VARCHAR(100) UNIQUE);
 CREATE TABLE IF NOT EXISTS `locations` (`id` INT AUTO_INCREMENT PRIMARY KEY, `name` VARCHAR(100) UNIQUE);
 
--- SEED DATA FOR LOOKUPS (Example)
+-- SEED DATA
 INSERT IGNORE INTO `program_status` (`name`) VALUES ('Akan Datang'), ('Selesai'), ('Batal'), ('Tangguh');
 INSERT IGNORE INTO `program_categories` (`name`) VALUES ('Outreach'), ('Kelas'), ('Kebajikan'), ('Lain-lain');
+INSERT IGNORE INTO `states` (`name`, `IDMualaf`) VALUES 
+('Johor', 'JHR'), ('Kedah', 'KDH'), ('Kelantan', 'KTN'), ('Melaka', 'MLK'), 
+('Negeri Sembilan', 'NSN'), ('Pahang', 'PHG'), ('Perak', 'PRK'), ('Perlis', 'PLS'), 
+('Pulau Pinang', 'PNG'), ('Sabah', 'SBH'), ('Sarawak', 'SWK'), ('Selangor', 'SGR'), 
+('Terengganu', 'TRG'), ('W.P. Kuala Lumpur', 'KUL'), ('W.P. Labuan', 'LBN'), ('W.P. Putrajaya', 'PJY');
