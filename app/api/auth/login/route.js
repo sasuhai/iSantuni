@@ -47,6 +47,9 @@ export async function POST(request) {
 
     } catch (error) {
         console.error('Login API Error:', error);
-        return NextResponse.json({ error: 'Internal server error' }, { status: 500 });
+        return NextResponse.json({
+            error: 'Ralat Pelayan (Server Error): ' + error.message,
+            details: error.code // Will show 'ECONNREFUSED' etc.
+        }, { status: 500 });
     }
 }
