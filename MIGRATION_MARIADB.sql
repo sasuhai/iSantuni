@@ -187,3 +187,14 @@ INSERT IGNORE INTO `states` (`name`, `IDMualaf`) VALUES
 ('Negeri Sembilan', 'NSN'), ('Pahang', 'PHG'), ('Perak', 'PRK'), ('Perlis', 'PLS'), 
 ('Pulau Pinang', 'PNG'), ('Sabah', 'SBH'), ('Sarawak', 'SWK'), ('Selangor', 'SGR'), 
 ('Terengganu', 'TRG'), ('W.P. Kuala Lumpur', 'KUL'), ('W.P. Labuan', 'LBN'), ('W.P. Putrajaya', 'PJY');
+
+-- INITIAL ADMIN USER (Password: password123)
+INSERT IGNORE INTO `users` (`id`, `email`, `password`, `name`, `role`, `assignedLocations`) 
+VALUES (
+  UUID(), 
+  'sasuhai0@gmail.com', 
+  '$2a$10$tM.yF6LzC9C.C1.P6.U.Oe6R7k8j5k3Q1a2b3c4d5e6f7g8h9i0j1', 
+  'Suhaidi', 
+  'admin', 
+  '["All"]'
+);
