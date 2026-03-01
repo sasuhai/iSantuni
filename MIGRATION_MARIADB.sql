@@ -2,7 +2,8 @@
 -- For Hostinger Web Hosting
 
 -- USERS TABLE
-CREATE TABLE IF NOT EXISTS `users` (
+DROP TABLE IF EXISTS `users`;
+CREATE TABLE `users` (
   `id` VARCHAR(36) PRIMARY KEY,
   `email` VARCHAR(255) UNIQUE,
   `password` VARCHAR(255), -- For custom auth
