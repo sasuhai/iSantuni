@@ -10,16 +10,23 @@ export async function POST(request) {
             return NextResponse.json({ error: 'Email and password are required' }, { status: 400 });
         }
 
+        console.log('Login attempt for:', email);
         const users = await query('SELECT * FROM users WHERE email = ?', [email]);
+        console.log('Users found:', users.length);
 
         if (users.length === 0) {
+            console.log('Login failed: User not found');
             return NextResponse.json({ error: 'Invalid email or password' }, { status: 401 });
         }
 
         const user = users[0];
+        console.log('User ID:', user.id);
+
         const passwordMatch = await verifyPassword(password, user.password_hash);
+        console.log('Password match result:', passwordMatch);
 
         if (!passwordMatch) {
+            console.log('Login failed: Password mismatch');
             return NextResponse.json({ error: 'Invalid email or password' }, { status: 401 });
         }
 

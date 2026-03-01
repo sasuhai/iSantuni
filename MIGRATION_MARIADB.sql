@@ -6,7 +6,7 @@ DROP TABLE IF EXISTS `users`;
 CREATE TABLE `users` (
   `id` VARCHAR(36) PRIMARY KEY,
   `email` VARCHAR(255) UNIQUE,
-  `password` VARCHAR(255), -- For custom auth
+  `password_hash` VARCHAR(255), -- For custom auth
   `name` VARCHAR(255),
   `role` VARCHAR(50) DEFAULT 'editor',
   `assignedLocations` JSON, -- Array of strings stored as JSON
@@ -212,11 +212,11 @@ INSERT IGNORE INTO `states` (`name`, `IDMualaf`) VALUES
 ('Terengganu', 'TRG'), ('W.P. Kuala Lumpur', 'KUL'), ('W.P. Labuan', 'LBN'), ('W.P. Putrajaya', 'PJY');
 
 -- INITIAL ADMIN USER (Password: password123)
-INSERT IGNORE INTO `users` (`id`, `email`, `password`, `name`, `role`, `assignedLocations`) 
+INSERT IGNORE INTO `users` (`id`, `email`, `password_hash`, `name`, `role`, `assignedLocations`) 
 VALUES (
   UUID(), 
   'sasuhai0@gmail.com', 
-  '$2a$10$tM.yF6LzC9C.C1.P6.U.Oe6R7k8j5k3Q1a2b3c4d5e6f7g8h9i0j1', 
+  '$2b$10$u77bzNcaV40GBi5pr1ID3OgzQSVQX1ij7eHd6oqbCgQ800EPBcNGW', 
   'Suhaidi', 
   'admin', 
   '["All"]'
