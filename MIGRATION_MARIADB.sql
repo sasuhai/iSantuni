@@ -120,6 +120,11 @@ CREATE TABLE IF NOT EXISTS `classes` (
   `lokasi` VARCHAR(100),
   `negeri` VARCHAR(100),
   `namaKelas` VARCHAR(255),
+  `level` VARCHAR(100),
+  `type` VARCHAR(100),
+  `day` VARCHAR(50),
+  `time` VARCHAR(50),
+  `teacher_id` VARCHAR(36),
   `createdAt` DATETIME DEFAULT CURRENT_TIMESTAMP,
   `updatedAt` DATETIME DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
@@ -127,11 +132,28 @@ CREATE TABLE IF NOT EXISTS `classes` (
 -- WORKERS TABLE
 CREATE TABLE IF NOT EXISTS `workers` (
   `id` VARCHAR(36) PRIMARY KEY,
+  `staff_id` VARCHAR(50),
   `nama` VARCHAR(255),
+  `noKP` VARCHAR(20),
+  `jantina` VARCHAR(20),
   `peranan` VARCHAR(100),
   `lokasi` VARCHAR(100),
+  `negeri` VARCHAR(100),
+  `kategoriElaun` VARCHAR(100),
+  `bank` VARCHAR(100),
+  `noAkaun` VARCHAR(50),
+  `tel_bimbit` VARCHAR(20),
+  `email` VARCHAR(255),
+  `pekerjaan` VARCHAR(255),
+  `kepakaran` TEXT,
+  `tarikh_lahir` DATE,
+  `tarikh_daftar` DATE,
+  `daerah_kediaman` VARCHAR(100),
+  `negeri_kediaman` VARCHAR(100),
   `createdAt` DATETIME DEFAULT CURRENT_TIMESTAMP,
-  `updatedAt` DATETIME DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP
+  `createdBy` VARCHAR(36),
+  `updatedAt` DATETIME DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+  `updatedBy` VARCHAR(36)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
 
 -- ATTENDANCE RECORDS TABLE
