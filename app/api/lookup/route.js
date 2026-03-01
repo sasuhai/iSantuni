@@ -5,20 +5,36 @@ export async function GET(request) {
     try {
         const { searchParams } = new URL(request.url);
         const table = searchParams.get('table');
+        const id = searchParams.get('id');
 
         if (!table) return NextResponse.json({ error: 'Table name is required' }, { status: 400 });
 
-        const allowedTables = ['states', 'locations', 'class_levels', 'class_types', 'rateCategories', 'banks', 'program_status', 'program_categories', 'program_organizers', 'program_types'];
+        const allowedTables = ['states', 'locations', 'class_levels', 'class_types', 'rateCategories', 'banks', 'program_status', 'program_categories', 'program_organizers', 'program_types', 'races', 'religions', 'users'];
         if (!allowedTables.includes(table)) return NextResponse.json({ error: 'Invalid table' }, { status: 403 });
 
-        let sql = `SELECT * FROM ${table}`;
-        if (table === 'rateCategories') {
-            sql += ` ORDER BY kategori ASC`;
+        let sql, params;
+        if (id) {
+            sql = `SELECT * FROM ${table} WHERE id = ?`;
+            params = [id];
         } else {
-            sql += ` ORDER BY name ASC`;
+            sql = `SELECT * FROM ${table}`;
+            if (table === 'rateCategories') {
+                sql += ` ORDER BY kategori ASC`;
+            } else if (table === 'users') {
+                sql += ` ORDER BY name ASC`;
+            } else {
+                sql += ` ORDER BY name ASC`;
+            }
+            params = [];
         }
 
-        const results = await query(sql);
+        const results = await query(sql, params);
+
+        // If searching for a single record, return just that object
+        if (id) {
+            return NextResponse.json(results[0] || null);
+        }
+
         return NextResponse.json(results);
     } catch (error) {
         console.error('Lookup GET Error:', error);
