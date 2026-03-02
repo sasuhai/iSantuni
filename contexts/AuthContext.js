@@ -1,7 +1,7 @@
 'use client';
 
 import { createContext, useContext, useState, useEffect, useRef } from 'react';
-import { getUserProfile, signIn, signOut } from '@/lib/supabase/auth';
+import { getUserProfile, signIn, signOut, resetPassword as apiResetPassword, updatePassword as apiUpdatePassword } from '@/lib/supabase/auth';
 
 const AuthContext = createContext({});
 
@@ -56,11 +56,12 @@ export const AuthProvider = ({ children }) => {
                 setUser(userObj);
                 localStorage.setItem('hcf_user', JSON.stringify(userObj));
 
-                // Profile is returned in login API in our custom setup
-                if (result.user.profile) {
-                    setProfile(result.user.profile);
-                    setRole(result.user.profile.role || 'editor');
-                    localStorage.setItem('hcf_profile', JSON.stringify(result.user.profile));
+                // Profile handling (Flat vs Nested)
+                const userProfile = result.user.profile || result.user;
+                if (userProfile) {
+                    setProfile(userProfile);
+                    setRole(userProfile.role || 'editor');
+                    localStorage.setItem('hcf_profile', JSON.stringify(userProfile));
                 }
             }
             setLoading(false);
@@ -89,6 +90,22 @@ export const AuthProvider = ({ children }) => {
         }
     };
 
+    const resetPasswordWrapper = async (email) => {
+        try {
+            return await apiResetPassword(email);
+        } catch (error) {
+            return { error: error.message };
+        }
+    };
+
+    const updatePasswordWrapper = async (email, token, newPassword) => {
+        try {
+            return await apiUpdatePassword(email, token, newPassword);
+        } catch (error) {
+            return { error: error.message };
+        }
+    };
+
     const value = {
         user,
         role,
@@ -96,6 +113,8 @@ export const AuthProvider = ({ children }) => {
         loading,
         signIn: signInWrapper,
         signOut: signOutWrapper,
+        resetPassword: resetPasswordWrapper,
+        updatePassword: updatePasswordWrapper,
         isRecovery,
         setIsRecovery,
         isAdmin: role === 'admin'

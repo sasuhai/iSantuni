@@ -80,10 +80,19 @@ export default function LaporanKPIPage() {
                 .order('order_index', { ascending: true });
 
             if (!error && data && data.length > 0) {
-                setKpiRows(data);
+                // IMPORTANT: Only set if the data actually contains UI rows (with 'source' field)
+                // Otherwise, it might be the MariaDB target settings which will break the UI
+                const validRows = data.filter(row => row.source);
+                if (validRows.length > 0) {
+                    const processedRows = validRows.map(row => ({
+                        ...row,
+                        config: typeof row.config === 'string' ? JSON.parse(row.config) : (row.config || {})
+                    }));
+                    setKpiRows(processedRows);
+                }
             }
         } catch (e) {
-            console.log("Config table not available, using fallback.");
+            console.log("Config table processing error, using fallback.", e);
         }
     };
 

@@ -384,8 +384,10 @@ function AttendanceDashboardContent() {
     }, [allRecords, allClasses, selectedYear, selectedMonth, selectedDay, selectedNegeri, selectedLocation, rates]);
 
     const getMonthName = (m) => {
-        if (m === 'Semua') return 'Semua';
-        return new Date(2000, parseInt(m) - 1, 1).toLocaleString('ms-MY', { month: 'long' }); // Changed to long for report
+        if (!m || m === 'Semua') return 'Semua';
+        const monthIdx = parseInt(m) - 1;
+        if (isNaN(monthIdx)) return 'Semua';
+        return new Date(2000, monthIdx, 1).toLocaleString('ms-MY', { month: 'long' });
     };
 
     const getGroupedParticipants = (participants) => {

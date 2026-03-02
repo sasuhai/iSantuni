@@ -27,6 +27,9 @@ export default function LoginPage() {
     const { user, signIn, resetPassword, updatePassword, isRecovery, setIsRecovery } = useAuth();
     const router = useRouter();
 
+    const [urlToken, setUrlToken] = useState(null);
+    const [urlEmail, setUrlEmail] = useState(null);
+
     // Effect: Switch to reset view if in recovery mode
     useEffect(() => {
         if (isRecovery) {
@@ -34,13 +37,28 @@ export default function LoginPage() {
         }
     }, [isRecovery]);
 
+    // Effect: Detect token from URL to force recovery mode
+    useEffect(() => {
+        if (typeof window !== 'undefined') {
+            const params = new URLSearchParams(window.location.search);
+            const token = params.get('token');
+            const emailParam = params.get('email');
+
+            if (token && emailParam) {
+                setUrlToken(token);
+                setUrlEmail(emailParam);
+                setIsRecovery(true);
+            }
+        }
+    }, []);
+
     // Effect: Redirect when user is authenticated
     useEffect(() => {
-        if (user && !isRecovery) {
+        if (user && !isRecovery && !urlToken) {
             console.log("LoginPage: User authenticated, redirecting...");
             window.location.href = '/';
         }
-    }, [user, isRecovery]);
+    }, [user, isRecovery, urlToken]);
 
     const handleLogin = async (e) => {
         e.preventDefault();
@@ -122,7 +140,13 @@ export default function LoginPage() {
 
         setLoading(true);
         try {
-            const result = await updatePassword(newPassword);
+            if (!urlToken || !urlEmail) {
+                setError('Maklumat URL tidak lengkap atau telah luput.');
+                setLoading(false);
+                return;
+            }
+
+            const result = await updatePassword(urlEmail, urlToken, newPassword);
             if (result.error) {
                 setError(result.error);
             } else {

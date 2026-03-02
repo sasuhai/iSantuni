@@ -67,7 +67,13 @@ export default function SenaraiPage() {
             const processedData = submissionsRes.data.map(sub => ({
                 ...sub,
                 createdByEmail: usersMap[sub.createdBy] || sub.createdBy,
-                updatedByEmail: usersMap[sub.updatedBy] || sub.updatedBy
+                updatedByEmail: usersMap[sub.updatedBy] || sub.updatedBy,
+                // Map KPI fields for filtering
+                kpi_status: sub.pengislamanKPI?.metrics?.overallStatus || 'Belum Disusuli',
+                kpi_score: sub.pengislamanKPI?.metrics?.followUpScore || 0,
+                kpi_delay: sub.pengislamanKPI?.metrics?.daysTakenToKeyIn || 0,
+                kpi_hubungi: sub.pengislamanKPI?.hubungi48j ? 'Ya' : 'Tidak',
+                kpi_kawasan: sub.pengislamanKPI?.kawasan || ''
             }));
 
             if (role !== 'admin' && profile?.assignedLocations && !profile.assignedLocations.includes('All')) {

@@ -2,12 +2,12 @@
 
 import { useState, useEffect, useRef, useCallback } from 'react';
 import { useAuth } from '@/contexts/AuthContext';
-import { getPrograms, getLookupData, getStates } from '@/lib/supabase/database';
+import { getPrograms, getLookupData, getStates, updateProgram, deleteProgram } from '@/lib/supabase/database';
 import { useModal } from '@/contexts/ModalContext';
 import ProtectedRoute from '@/components/ProtectedRoute';
 import Navbar from '@/components/Navbar';
 import Link from 'next/link';
-import { Plus, Search, Filter, Activity, FileText, ArrowUp, ArrowDown, ArrowUpDown, Eye, Edit, Trash2, Loader2, RefreshCw, Download, Check, Square, Save, X, LayoutGrid, Calendar, ExternalLink } from 'lucide-react';
+import { Plus, Search, Filter, Activity, FileText, ArrowUp, ArrowDown, ArrowUpDown, Eye, Edit, Trash2, Loader2, RefreshCw, Download, Check, Square, Save, X, LayoutGrid, Table, Calendar, ExternalLink } from 'lucide-react';
 import Select from 'react-select';
 
 const FilterInput = ({ value, onChange, options, placeholder, listId }) => (
@@ -65,6 +65,28 @@ export default function ProgramPage() {
     const [saving, setSaving] = useState(false);
     const observerTarget = useRef(null);
     const INCREMENT = 50;
+
+    // Validation Helpers
+    const isValueInOptions = (val, options) => {
+        if (!val) return true;
+        const normalizedVal = val.toString().trim().toLowerCase();
+        return options.some(opt => {
+            const optVal = (typeof opt === 'string' ? opt : (opt.value ?? opt.label ?? '')).toString().trim().toLowerCase();
+            return optVal === normalizedVal;
+        });
+    };
+
+    const getSelectClass = (val, options, isInput = false) => {
+        const base = `w-full bg-white border border-slate-200 rounded px-1 py-0.5 text-[10px] focus:ring-1 focus:ring-emerald-500 transition-all ${isInput ? 'h-[22px]' : ''}`;
+        if (!val) return base;
+
+        // For multi-select checks or single select
+        const isInvalid = Array.isArray(val)
+            ? val.some(v => !isValueInOptions(v, options))
+            : !isValueInOptions(val, options);
+
+        return isInvalid ? `${base} text-red-600 font-bold border-red-200 bg-red-50` : base;
+    };
 
     const loadPrograms = async () => {
         setLoading(true);
@@ -360,6 +382,18 @@ export default function ProgramPage() {
         }
     };
 
+    const formatOnlyDate = (dateStr) => {
+        if (!dateStr) return '-';
+        try {
+            const date = new Date(dateStr);
+            return date.toLocaleDateString('ms-MY', {
+                day: '2-digit', month: '2-digit', year: 'numeric'
+            });
+        } catch (e) {
+            return dateStr;
+        }
+    };
+
     return (
         <ProtectedRoute>
             <div className="min-h-screen bg-gradient-to-br from-emerald-50 via-teal-50 to-cyan-50 pt-16">
@@ -367,15 +401,10 @@ export default function ProgramPage() {
 
                 <div className="w-full mx-auto px-2 sm:px-4 py-2">
                     <div className="mb-2">
-                        <div className="flex justify-between items-center mb-1">
-                            <h1 className="text-xl font-bold text-gray-900">Senarai Program & Aktiviti</h1>
-                            <Link
-                                href="/program/tambah"
-                                className="inline-flex items-center justify-center px-4 py-2 bg-emerald-600 text-white rounded-lg hover:bg-emerald-700 transition-all font-medium text-sm shadow-sm"
-                            >
-                                <Plus className="w-4 h-4 mr-2" />
-                                Tambah Program Baru
-                            </Link>
+                        <div className="flex items-center justify-between mb-1">
+                            <h1 className="text-xl font-bold text-gray-900 flex items-center">
+                                <Activity className="h-5 w-5 mr-2 text-emerald-600" /> Senarai Program & Aktiviti
+                            </h1>
                         </div>
 
                         {/* Filter Section */}
@@ -416,63 +445,73 @@ export default function ProgramPage() {
                             </div>
                         </div>
 
-                        <div className="flex justify-between items-center mt-3">
-                            <p className="text-gray-600 text-xs">
-                                Jumlah {filteredPrograms.length} program dijumpai
+                        <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center mt-3 px-1 gap-2">
+                            <p className="text-gray-500 text-[10px] font-bold uppercase tracking-widest">
+                                {filteredPrograms.length} PROGRAM DIJUMPAI
                             </p>
-                            <div className="flex items-center space-x-2">
+                            <div className="flex flex-wrap items-center justify-end gap-2 w-full sm:w-auto">
                                 {Object.keys(columnFilters).length > 0 && (
                                     <button
                                         onClick={clearAllFilters}
-                                        className="px-3 py-1 bg-red-50 text-red-600 rounded text-xs font-medium hover:bg-red-100 transition-colors"
+                                        className="text-red-600 text-[10px] font-bold uppercase hover:underline mr-2"
                                     >
-                                        Padam Semua Filter
+                                        Padam Filter
                                     </button>
                                 )}
+
+                                <button
+                                    onClick={() => {
+                                        if (isSpreadsheetMode) {
+                                            setPendingChanges({});
+                                        }
+                                        setIsSpreadsheetMode(!isSpreadsheetMode);
+                                    }}
+                                    className={`flex items-center space-x-1 px-2 py-1 rounded border text-[10px] font-bold uppercase transition-all shadow-sm ${isSpreadsheetMode ? 'bg-amber-50 text-amber-700 border-amber-200' : 'bg-white text-emerald-700 border-emerald-300 hover:bg-emerald-50'}`}
+                                >
+                                    {isSpreadsheetMode ? <LayoutGrid className="h-3 w-3" /> : <Table className="h-3 w-3" />}
+                                    <span>{isSpreadsheetMode ? 'Mod Biasa' : 'Mod Spreadsheet'}</span>
+                                </button>
+
                                 <button
                                     onClick={loadPrograms}
                                     disabled={loading}
-                                    className="flex items-center justify-center space-x-1 whitespace-nowrap bg-white text-gray-700 border border-gray-300 hover:bg-gray-50 px-3 py-1 rounded text-xs font-medium shadow-sm transition-colors"
+                                    className="p-1 bg-white text-gray-600 rounded border border-gray-300 shadow-sm transition-transform active:scale-90 flex items-center justify-center h-[26px] w-[26px]"
+                                    title="Muat Semula"
                                 >
-                                    <RefreshCw className={`h-4 w-4 ${loading ? 'animate-spin' : ''}`} />
-                                    <span>Muat Semula</span>
+                                    <RefreshCw className={`h-3 w-3 ${loading ? 'animate-spin' : ''}`} />
                                 </button>
-                                <button
-                                    onClick={exportToCSV}
-                                    className="flex items-center justify-center space-x-1 whitespace-nowrap bg-white text-gray-700 border border-gray-300 hover:bg-gray-50 px-3 py-1 rounded text-xs font-medium shadow-sm transition-colors"
+
+                                <Link
+                                    href="/program/tambah"
+                                    className="bg-emerald-600 text-white px-2 py-1 rounded text-[10px] font-bold uppercase hover:bg-emerald-700 shadow-sm flex items-center transform active:scale-95 border border-emerald-700 h-[26px]"
                                 >
-                                    <Download className="h-4 w-4" />
-                                    <span>Export CSV</span>
-                                </button>
+                                    <Plus className="h-3 w-3 mr-1" /> Tambah
+                                </Link>
+
                                 <Link
                                     href={`/program/kalendar${(selectedYear || selectedMonth) ? `?date=${selectedYear || new Date().getFullYear()}-${String(selectedMonth || 1).padStart(2, '0')}-01` : ''}${selectedState ? ((selectedYear || selectedMonth) ? '&' : '?') + `state=${selectedState}` : ''}`}
-                                    className="flex items-center justify-center space-x-1 whitespace-nowrap bg-indigo-50 text-indigo-700 border border-indigo-200 hover:bg-indigo-100 px-3 py-1 rounded text-xs font-bold shadow-sm transition-colors"
+                                    className="flex items-center space-x-1 bg-indigo-50 text-indigo-700 border border-indigo-200 px-2 py-1 rounded text-[10px] font-bold uppercase shadow-sm h-[26px]"
                                 >
-                                    <Calendar className="h-4 w-4" />
-                                    <span>Paparan Kalendar</span>
+                                    <Calendar className="h-3 w-3" />
+                                    <span>Kalendar</span>
                                 </Link>
-                                {(role === 'admin' || role === 'editor') && (
-                                    <button
-                                        onClick={() => {
-                                            if (isSpreadsheetMode) {
-                                                setPendingChanges({});
-                                            }
-                                            setIsSpreadsheetMode(!isSpreadsheetMode);
-                                        }}
-                                        className={`flex items-center justify-center space-x-1 whitespace-nowrap px-3 py-1 rounded text-xs font-bold shadow-sm transition-all ${isSpreadsheetMode ? 'bg-amber-100 text-amber-700 border border-amber-300' : 'bg-white text-emerald-700 border border-emerald-300 hover:bg-emerald-50'}`}
-                                    >
-                                        <LayoutGrid className="h-4 w-4" />
-                                        <span>{isSpreadsheetMode ? 'Batal Edit' : 'Mod Spreadsheet'}</span>
-                                    </button>
-                                )}
+
+                                <button
+                                    onClick={exportToCSV}
+                                    className="flex items-center space-x-1 bg-white border border-gray-300 px-2 py-1 rounded text-[10px] font-bold uppercase shadow-sm h-[26px]"
+                                >
+                                    <Download className="h-3 w-3" />
+                                    <span>Export</span>
+                                </button>
+
                                 {Object.keys(pendingChanges).length > 0 && (
                                     <button
                                         onClick={saveAllChanges}
                                         disabled={saving}
-                                        className="flex items-center justify-center space-x-1 whitespace-nowrap bg-emerald-600 text-white hover:bg-emerald-700 px-4 py-1 rounded text-xs font-bold shadow-md transition-all animate-pulse"
+                                        className="flex items-center bg-emerald-700 text-white px-3 py-1 rounded text-[10px] font-bold uppercase shadow-md hover:bg-emerald-800 animate-pulse h-[26px]"
                                     >
-                                        <Save className="h-4 w-4 mr-1" />
-                                        <span>Simpan {Object.keys(pendingChanges).length} Perubahan</span>
+                                        <Save className="h-3 w-3 mr-1" />
+                                        <span>Simpan ({Object.keys(pendingChanges).length})</span>
                                     </button>
                                 )}
                             </div>
@@ -593,7 +632,7 @@ export default function ProgramPage() {
                                                         type="text"
                                                         value={pendingChanges[prog.id]?.nama_program !== undefined ? pendingChanges[prog.id].nama_program : (prog.nama_program || '')}
                                                         onChange={(e) => handleCellChange(prog.id, 'nama_program', e.target.value)}
-                                                        className="w-full bg-white border border-slate-200 rounded px-1 py-0.5 text-[10px] focus:ring-1 focus:ring-emerald-500"
+                                                        className="w-full bg-white border border-slate-200 rounded px-1 py-0.5 text-[10px] focus:ring-1 focus:ring-emerald-500 font-bold text-gray-900"
                                                     />
                                                 ) : (
                                                     <span className="font-bold text-gray-900 block truncate max-w-[190px]" title={prog.nama_program}>
@@ -607,9 +646,10 @@ export default function ProgramPage() {
                                                     <select
                                                         value={pendingChanges[prog.id]?.status_program !== undefined ? pendingChanges[prog.id].status_program : (prog.status_program || '')}
                                                         onChange={(e) => handleCellChange(prog.id, 'status_program', e.target.value)}
-                                                        className="w-full bg-white border border-slate-200 rounded px-1 py-0.5 text-[10px] focus:ring-1 focus:ring-emerald-500"
+                                                        className={getSelectClass(pendingChanges[prog.id]?.status_program !== undefined ? pendingChanges[prog.id].status_program : (prog.status_program || ''), statusOptions)}
                                                     >
-                                                        <option value="">-- Pilih --</option>
+                                                        {!prog.status_program && <option value=""></option>}
+                                                        {prog.status_program && !isValueInOptions(prog.status_program, statusOptions) && <option value={prog.status_program}>{prog.status_program}</option>}
                                                         {statusOptions.map(s => <option key={s} value={s}>{s}</option>)}
                                                     </select>
                                                 ) : (
@@ -654,9 +694,10 @@ export default function ProgramPage() {
                                                                 <select
                                                                     value={rawValue || ''}
                                                                     onChange={(e) => handleCellChange(prog.id, col.id, e.target.value)}
-                                                                    className="w-full bg-white border border-slate-200 rounded px-1 py-0.5 text-[10px]"
+                                                                    className={getSelectClass(rawValue, states)}
                                                                 >
-                                                                    <option value="">-- Pilih --</option>
+                                                                    {!rawValue && <option value=""></option>}
+                                                                    {rawValue && !isValueInOptions(rawValue, states) && <option value={rawValue}>{rawValue}</option>}
                                                                     {states.map(s => <option key={s} value={s}>{s}</option>)}
                                                                 </select>
                                                             </td>
@@ -668,41 +709,50 @@ export default function ProgramPage() {
                                                                 <select
                                                                     value={rawValue || ''}
                                                                     onChange={(e) => handleCellChange(prog.id, col.id, e.target.value)}
-                                                                    className="w-full bg-white border border-slate-200 rounded px-1 py-0.5 text-[10px]"
+                                                                    className={getSelectClass(rawValue, kategoriOptions)}
                                                                 >
-                                                                    <option value="">-- Pilih --</option>
+                                                                    {!rawValue && <option value=""></option>}
+                                                                    {rawValue && !isValueInOptions(rawValue, kategoriOptions) && <option value={rawValue}>{rawValue}</option>}
                                                                     {kategoriOptions.map(k => <option key={k} value={k}>{k}</option>)}
                                                                 </select>
                                                             </td>
                                                         );
                                                     }
                                                     if (col.id.includes('tarikh')) {
+                                                        const dateValue = rawValue ? (rawValue.includes('T') ? rawValue.split('T')[0] : rawValue) : '';
                                                         return (
-                                                            <td key={col.id} className={`py-1 px-2 border-r border-gray-200 ${isEdited ? 'bg-amber-50' : 'bg-white'}`}>
+                                                            <td key={col.id} className={`py-1 px-2 border-r border-gray-200 min-w-[120px] ${isEdited ? 'bg-amber-50' : 'bg-white'}`}>
                                                                 <input
-                                                                    type="date"
-                                                                    value={rawValue || ''}
+                                                                    type={dateValue ? "date" : "text"}
+                                                                    onFocus={(e) => (e.target.type = "date")}
+                                                                    onBlur={(e) => { if (!e.target.value) e.target.type = "text"; }}
+                                                                    value={dateValue}
+                                                                    placeholder=""
                                                                     onChange={(e) => handleCellChange(prog.id, col.id, e.target.value)}
-                                                                    className="w-full bg-white border border-slate-200 rounded px-1 py-0.5 text-[10px]"
+                                                                    className="w-full bg-white border border-slate-200 rounded px-1 py-0.5 text-[10px] text-center"
                                                                 />
                                                             </td>
                                                         );
                                                     }
                                                     if (col.id.includes('masa')) {
+                                                        const timeValue = rawValue ? (rawValue.includes(':') ? rawValue.slice(0, 5) : rawValue) : '';
                                                         return (
-                                                            <td key={col.id} className={`py-1 px-2 border-r border-gray-200 ${isEdited ? 'bg-amber-50' : 'bg-white'}`}>
+                                                            <td key={col.id} className={`py-1 px-2 border-r border-gray-200 min-w-[100px] ${isEdited ? 'bg-amber-50' : 'bg-white'}`}>
                                                                 <input
-                                                                    type="time"
-                                                                    value={rawValue || ''}
+                                                                    type={timeValue ? "time" : "text"}
+                                                                    onFocus={(e) => (e.target.type = "time")}
+                                                                    onBlur={(e) => { if (!e.target.value) e.target.type = "text"; }}
+                                                                    value={timeValue}
+                                                                    placeholder=""
                                                                     onChange={(e) => handleCellChange(prog.id, col.id, e.target.value)}
-                                                                    className="w-full bg-white border border-slate-200 rounded px-1 py-0.5 text-[10px]"
+                                                                    className="w-full bg-white border border-slate-200 rounded px-1 py-0.5 text-[10px] text-center"
                                                                 />
                                                             </td>
                                                         );
                                                     }
                                                     if (col.id.startsWith('kehadiran_')) {
                                                         return (
-                                                            <td key={col.id} className={`py-1 px-2 border-r border-gray-200 ${isEdited ? 'bg-amber-50' : 'bg-white'}`}>
+                                                            <td key={col.id} className={`py-1 px-2 border-r border-gray-200 min-w-[70px] ${isEdited ? 'bg-amber-50' : 'bg-white'}`}>
                                                                 <input
                                                                     type="number"
                                                                     value={rawValue === null || rawValue === undefined ? '' : rawValue}
@@ -744,16 +794,21 @@ export default function ProgramPage() {
                                                                     value={selectedOptions}
                                                                     onChange={(selected) => handleCellChange(prog.id, col.id, selected ? selected.map(s => s.value) : [])}
                                                                     className="text-[10px]"
+                                                                    placeholder=""
+                                                                    noOptionsMessage={() => "Tiada padanan"}
                                                                     menuPortalTarget={typeof window !== 'undefined' ? document.body : null}
                                                                     styles={{
-                                                                        control: (base) => ({
-                                                                            ...base,
-                                                                            minHeight: '22px',
-                                                                            fontSize: '9px',
-                                                                            border: 'none',
-                                                                            boxShadow: 'none',
-                                                                            backgroundColor: 'transparent'
-                                                                        }),
+                                                                        control: (base) => {
+                                                                            const isAnyInvalid = currentArray.some(v => !isValueInOptions(v, options));
+                                                                            return {
+                                                                                ...base,
+                                                                                minHeight: '22px',
+                                                                                fontSize: '9px',
+                                                                                border: isAnyInvalid ? '1px solid #fecaca' : 'none',
+                                                                                boxShadow: 'none',
+                                                                                backgroundColor: isAnyInvalid ? '#fef2f2' : 'transparent',
+                                                                            };
+                                                                        },
                                                                         valueContainer: (base) => ({
                                                                             ...base,
                                                                             padding: '0 2px',
@@ -762,17 +817,27 @@ export default function ProgramPage() {
                                                                             ...base,
                                                                             height: '22px',
                                                                         }),
-                                                                        multiValue: (base) => ({
-                                                                            ...base,
-                                                                            backgroundColor: '#f1f5f9',
-                                                                            border: '1px solid #e2e8f0',
-                                                                            margin: '1px'
-                                                                        }),
-                                                                        multiValueLabel: (base) => ({
-                                                                            ...base,
-                                                                            fontSize: '8px',
-                                                                            padding: '0 1px',
-                                                                        }),
+                                                                        multiValue: (base, state) => {
+                                                                            const val = state.data.value;
+                                                                            const isInvalid = !isValueInOptions(val, options);
+                                                                            return {
+                                                                                ...base,
+                                                                                backgroundColor: isInvalid ? '#fee2e2' : '#f1f5f9',
+                                                                                border: isInvalid ? '1px solid #fecaca' : '1px solid #e2e8f0',
+                                                                                margin: '1px'
+                                                                            };
+                                                                        },
+                                                                        multiValueLabel: (base, state) => {
+                                                                            const val = state.data.value;
+                                                                            const isInvalid = !isValueInOptions(val, options);
+                                                                            return {
+                                                                                ...base,
+                                                                                fontSize: '8px',
+                                                                                padding: '0 1px',
+                                                                                color: isInvalid ? '#b91c1c' : '#475569',
+                                                                                fontWeight: isInvalid ? 'bold' : 'normal'
+                                                                            };
+                                                                        },
                                                                         menuPortal: base => ({ ...base, zIndex: 9999 })
                                                                     }}
                                                                 />
@@ -780,13 +845,20 @@ export default function ProgramPage() {
                                                         );
                                                     }
                                                     // Default text input
+                                                    const lookupMap = {
+                                                        'tempat': lookupOptions.kawasan,
+                                                        'anjuran': lookupOptions.anjuran,
+                                                        // you can add more if they have one-to-one lookups
+                                                    };
+                                                    const currentLookup = lookupMap[col.id];
+
                                                     return (
-                                                        <td key={col.id} className={`py-1 px-2 border-r border-gray-200 ${isEdited ? 'bg-amber-50' : 'bg-white'}`}>
+                                                        <td key={col.id} className={`py-1 px-2 border-r border-gray-200 min-w-[150px] ${isEdited ? 'bg-amber-50' : 'bg-white'}`}>
                                                             <input
                                                                 type="text"
                                                                 value={rawValue || ''}
                                                                 onChange={(e) => handleCellChange(prog.id, col.id, e.target.value)}
-                                                                className="w-full bg-white border border-slate-200 rounded px-1 py-0.5 text-[10px]"
+                                                                className={currentLookup ? getSelectClass(rawValue, currentLookup, true) : "w-full bg-white border border-slate-200 rounded px-1 py-0.5 text-[10px] focus:ring-1 focus:ring-emerald-500"}
                                                             />
                                                         </td>
                                                     );
@@ -796,6 +868,8 @@ export default function ProgramPage() {
                                                 let displayValue = prog[col.id];
                                                 if (col.id === 'createdAt') {
                                                     displayValue = formatDate(displayValue);
+                                                } else if (col.id.includes('tarikh')) {
+                                                    displayValue = formatOnlyDate(displayValue);
                                                 }
                                                 if (col.id === 'selesai_laporan') {
                                                     displayValue = displayValue ? (
@@ -857,15 +931,15 @@ export default function ProgramPage() {
                                 </tbody>
                             </table>
 
-                            <div ref={observerTarget} className="py-8 flex flex-col items-center justify-center border-t border-gray-100 bg-white">
+                            <div ref={observerTarget} className="py-8 flex flex-col items-center justify-center border-t border-gray-100 bg-white shadow-inner">
                                 {hasMore ? (
-                                    <div className="flex items-center space-x-2 text-emerald-600 font-medium">
+                                    <div className="flex items-center space-x-2 text-emerald-600 font-bold uppercase tracking-widest text-[10px]">
                                         <Loader2 className="h-5 w-5 animate-spin" />
-                                        <span>Memuatkan lebih banyak program...</span>
+                                        <span>Memuatkan rekod...</span>
                                     </div>
                                 ) : filteredPrograms.length > 0 ? (
-                                    <div className="text-gray-400 text-sm italic">
-                                        — Akhir senarai ({filteredPrograms.length} program) —
+                                    <div className="text-gray-400 text-[10px] font-bold uppercase tracking-widest italic">
+                                        — AKHIR SENARAI ({filteredPrograms.length} PROGRAM) —
                                     </div>
                                 ) : null}
                             </div>

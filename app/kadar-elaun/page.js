@@ -94,7 +94,7 @@ export default function RatesPage() {
 
         showDestructiveConfirm(
             'Sahkan Padam Kadar Elaun',
-            `Adakah anda pasti mahu memadam kadar elaun berikut?\n\n• Kategori: ${rate.kategori}\n• Jumlah: RM ${rate.jumlahElaun.toFixed(2)}\n• Jenis: ${rate.jenis === 'petugas' ? 'Petugas' : 'Mualaf'}\n\n\nTindakan ini tidak boleh dikembalikan semula.`,
+            `Adakah anda pasti mahu memadam kadar elaun berikut?\n\n• Kategori: ${rate.kategori}\n• Jumlah: RM ${Number(rate.jumlahElaun || 0).toFixed(2)}\n• Jenis: ${rate.jenis === 'petugas' ? 'Petugas' : 'Mualaf'}\n\n\nTindakan ini tidak boleh dikembalikan semula.`,
             async () => {
                 const { error } = await deleteRateCategory(id);
                 if (error) {
@@ -264,7 +264,7 @@ export default function RatesPage() {
                                                     <tr key={rate.id} className="hover:bg-blue-50/50 transition-colors">
                                                         <td className="px-3 py-1.5 whitespace-nowrap text-xs font-semibold text-gray-900">{rate.kategori}</td>
                                                         <td className="px-3 py-1.5 whitespace-nowrap text-right text-xs font-bold text-emerald-600">
-                                                            {rate.jumlahElaun.toFixed(2)}
+                                                            {Number(rate.jumlahElaun || 0).toFixed(2)}
                                                         </td>
                                                         <td className="px-3 py-1.5 whitespace-nowrap text-[10px] text-gray-500">{rate.jenisPembayaran.replace('bayaran/', '')}</td>
                                                         <td className="px-3 py-1.5 whitespace-nowrap text-center text-xs">
@@ -306,7 +306,7 @@ export default function RatesPage() {
                                                     <tr key={rate.id} className="hover:bg-purple-50/50 transition-colors">
                                                         <td className="px-3 py-1.5 whitespace-nowrap text-xs font-semibold text-gray-900">{rate.kategori}</td>
                                                         <td className="px-3 py-1.5 whitespace-nowrap text-right text-xs font-bold text-emerald-600">
-                                                            {rate.jumlahElaun.toFixed(2)}
+                                                            {Number(rate.jumlahElaun || 0).toFixed(2)}
                                                         </td>
                                                         <td className="px-3 py-1.5 whitespace-nowrap text-[10px] text-gray-500">{rate.jenisPembayaran.replace('bayaran/', '')}</td>
                                                         <td className="px-3 py-1.5 whitespace-nowrap text-center text-xs">

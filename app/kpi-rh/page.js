@@ -6,8 +6,9 @@ import { useModal } from '@/contexts/ModalContext';
 import { supabase } from '@/lib/supabase/client';
 import ProtectedRoute from '@/components/ProtectedRoute';
 import Navbar from '@/components/Navbar';
-import { Plus, Search, Filter, Activity, FileText, ArrowUp, ArrowDown, ArrowUpDown, Trash2, Loader2, RefreshCw, Download, Save, LayoutGrid, Check, X, Copy, ChevronDown } from 'lucide-react';
+import { Plus, Search, Filter, Activity, FileText, ArrowUp, ArrowDown, ArrowUpDown, Trash2, Loader2, RefreshCw, Download, Save, LayoutGrid, Check, X, Copy, ChevronDown, Table } from 'lucide-react';
 import Select from 'react-select';
+import { getStates } from '@/lib/supabase/database';
 
 // Configuration for each Tab
 const TABS = [
@@ -79,6 +80,39 @@ const COLUMNS_MAP = {
     ]
 };
 
+const isValueInOptions = (val, options) => {
+    if (!val || !options || !Array.isArray(options) || options.length === 0) return true;
+    const cleanVal = val.toString().trim().toLowerCase();
+    return options.some(opt => {
+        if (!opt && opt !== 0) return false;
+        const optVal = typeof opt === 'object' ? (opt.value || opt.label || opt.name || opt) : opt;
+        return optVal?.toString().trim().toLowerCase() === cleanVal;
+    });
+};
+
+const getSelectClass = (val, options, isInput = false) => {
+    const base = `w-full bg-white border border-slate-200 rounded px-1 py-0.5 text-[10px] focus:ring-1 focus:ring-emerald-500 transition-all ${isInput ? 'h-[22px]' : ''}`;
+    if (!val) return base;
+
+    const isInvalid = Array.isArray(val)
+        ? val.some(v => !isValueInOptions(v, options))
+        : !isValueInOptions(val, options);
+
+    return isInvalid ? `${base} text-red-600 font-bold border-red-200 bg-red-50` : base;
+};
+
+const formatOnlyDate = (dateStr) => {
+    if (!dateStr) return '-';
+    try {
+        const date = new Date(dateStr);
+        return date.toLocaleDateString('ms-MY', {
+            day: '2-digit', month: '2-digit', year: 'numeric'
+        });
+    } catch (e) {
+        return dateStr;
+    }
+};
+
 const FilterInput = ({ value, onChange, options, placeholder, listId }) => (
     <div className="relative mt-1">
         <input
@@ -142,7 +176,7 @@ export default function RakanHidayahKPIPage() {
             // Load states once
             let currentStates = states;
             if (states.length === 0) {
-                const { data: statesRes } = await supabase.from('states').select('*').order('name');
+                const { data: statesRes } = await getStates();
                 if (statesRes) {
                     setStates(statesRes);
                     currentStates = statesRes;
@@ -171,7 +205,9 @@ export default function RakanHidayahKPIPage() {
 
             // Flatten JSON for easier rendering
             let flattenedData = data.map(item => {
-                const stateObj = currentStates.find(s => s.name === item.state);
+                const stateObj = currentStates.find(s =>
+                    s.name?.toString().trim().toLowerCase() === item.state?.toString().trim().toLowerCase()
+                );
                 return {
                     id: item.id,
                     year: item.year,
@@ -620,98 +656,102 @@ export default function RakanHidayahKPIPage() {
                         </div>
 
                         {/* Filter Section */}
-                        <div className="bg-white rounded-xl p-4 mt-3 mb-1 shadow-sm border border-slate-200 flex items-center justify-between">
-                            <div className="w-1/4 mr-4">
-                                <label className="block text-[10px] font-bold text-slate-500 uppercase tracking-wider mb-1">Tahun</label>
-                                <select
-                                    className="w-full bg-slate-50 border border-slate-200 text-slate-800 rounded-lg px-3 py-2 focus:outline-none focus:ring-2 focus:ring-emerald-500/20 focus:border-emerald-500 text-sm font-medium"
-                                    value={selectedYear}
-                                    onChange={(e) => setSelectedYear(Number(e.target.value))}
-                                >
-                                    <option value={0}>Semua Tahun</option>
-                                    {availableYears.map(y => <option key={y.value} value={y.value}>{y.label}</option>)}
-                                    {!availableYears.some(y => y.value === selectedYear) && selectedYear !== 0 && (
-                                        <option value={selectedYear}>{selectedYear}</option>
-                                    )}
-                                </select>
-                            </div>
-
-                            <div className="w-1/4 mr-4">
-                                <label className="block text-[10px] font-bold text-slate-500 uppercase tracking-wider mb-1">Negeri / Kawasan</label>
-                                <select
-                                    className="w-full bg-slate-50 border border-slate-200 text-slate-800 rounded-lg px-3 py-2 focus:outline-none focus:ring-2 focus:ring-emerald-500/20 focus:border-emerald-500 text-sm font-medium"
-                                    value={selectedState}
-                                    onChange={(e) => setSelectedState(e.target.value)}
-                                >
-                                    <option value="">Semua Negeri</option>
-                                    {availableStates.map(s => <option key={s.value} value={s.value}>{s.label}</option>)}
-                                    {!availableStates.some(s => s.value === selectedState) && selectedState !== '' && (
-                                        <option value={selectedState}>{selectedState}</option>
-                                    )}
-                                </select>
-                            </div>
-
-                            <div className="flex items-end h-full space-x-2">
-                                {(role === 'admin' || role === 'editor') && (
-                                    <button
-                                        onClick={() => {
-                                            if (isSpreadsheetMode) {
-                                                setPendingChanges({});
-                                            }
-                                            setIsSpreadsheetMode(!isSpreadsheetMode);
-                                        }}
-                                        className={`inline-flex items-center justify-center px-4 py-2 rounded-lg transition-all font-medium text-sm shadow-sm h-10 ${isSpreadsheetMode ? 'bg-amber-100 text-amber-700 border border-amber-300' : 'bg-white text-emerald-700 border border-emerald-300 hover:bg-emerald-50'}`}
+                        <div className="bg-white rounded-xl p-4 mt-3 mb-1 shadow-sm border border-slate-200">
+                            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4 items-end">
+                                <div>
+                                    <label className="block text-[10px] font-bold text-slate-500 uppercase tracking-wider mb-1">Tahun</label>
+                                    <select
+                                        className="w-full bg-slate-50 border border-slate-200 text-slate-800 rounded-lg px-3 py-2 focus:outline-none focus:ring-2 focus:ring-emerald-500/20 focus:border-emerald-500 text-sm font-medium h-[38px]"
+                                        value={selectedYear}
+                                        onChange={(e) => setSelectedYear(Number(e.target.value))}
                                     >
-                                        <LayoutGrid className="h-4 w-4 mr-2" />
-                                        {isSpreadsheetMode ? 'Batal Edit' : 'Edit Data'}
+                                        <option value={0}>Semua Tahun</option>
+                                        {availableYears.map(y => <option key={y.value} value={y.value}>{y.label}</option>)}
+                                        {!availableYears.some(y => y.value === selectedYear) && selectedYear !== 0 && (
+                                            <option value={selectedYear}>{selectedYear}</option>
+                                        )}
+                                    </select>
+                                </div>
+
+                                <div>
+                                    <label className="block text-[10px] font-bold text-slate-500 uppercase tracking-wider mb-1">Negeri / Kawasan</label>
+                                    <select
+                                        className="w-full bg-slate-50 border border-slate-200 text-slate-800 rounded-lg px-3 py-2 focus:outline-none focus:ring-2 focus:ring-emerald-500/20 focus:border-emerald-500 text-sm font-medium h-[38px]"
+                                        value={selectedState}
+                                        onChange={(e) => setSelectedState(e.target.value)}
+                                    >
+                                        <option value="">Semua Negeri</option>
+                                        {availableStates.map(s => <option key={s.value} value={s.value}>{s.label}</option>)}
+                                        {!availableStates.some(s => s.value === selectedState) && selectedState !== '' && (
+                                            <option value={selectedState}>{selectedState}</option>
+                                        )}
+                                    </select>
+                                </div>
+
+                                <div className="lg:col-span-2 flex flex-wrap items-center justify-end gap-2">
+                                    {(role === 'admin' || role === 'editor') && (
+                                        <button
+                                            onClick={() => {
+                                                if (isSpreadsheetMode) {
+                                                    setPendingChanges({});
+                                                }
+                                                setIsSpreadsheetMode(!isSpreadsheetMode);
+                                            }}
+                                            className={`flex items-center space-x-1 px-2 py-1 rounded border text-[10px] font-bold uppercase transition-all shadow-sm h-[38px] ${isSpreadsheetMode ? 'bg-amber-50 text-amber-700 border-amber-200' : 'bg-white text-emerald-700 border-emerald-300 hover:bg-emerald-50'}`}
+                                        >
+                                            {isSpreadsheetMode ? <LayoutGrid className="h-4 w-4 mr-1" /> : <Table className="h-4 w-4 mr-1" />}
+                                            <span>{isSpreadsheetMode ? 'Mod Biasa' : 'Mod Spreadsheet'}</span>
+                                        </button>
+                                    )}
+
+                                    <button
+                                        onClick={loadData}
+                                        disabled={loading}
+                                        className="p-1 bg-white text-gray-600 rounded border border-gray-300 shadow-sm transition-transform active:scale-90 flex items-center justify-center h-[38px] w-[38px]"
+                                        title="Muat Semula"
+                                    >
+                                        <RefreshCw className={`h-4 w-4 ${loading ? 'animate-spin' : ''}`} />
                                     </button>
-                                )}
-                                <button
-                                    onClick={handleAddRow}
-                                    className="inline-flex items-center justify-center px-4 py-2 bg-emerald-600 text-white rounded-lg hover:bg-emerald-700 transition-all font-medium text-sm shadow-sm h-10"
-                                >
-                                    <Plus className="w-4 h-4 mr-2" />
-                                    Tambah Rekod
-                                </button>
+
+                                    <button
+                                        onClick={handleAddRow}
+                                        className="bg-emerald-600 text-white px-3 py-1 rounded text-[10px] font-bold uppercase hover:bg-emerald-700 shadow-sm flex items-center transform active:scale-95 border border-emerald-700 h-[38px]"
+                                    >
+                                        <Plus className="w-4 h-4 mr-1" /> Tambah Rekod
+                                    </button>
+
+                                    <button
+                                        onClick={exportToCSV}
+                                        className="flex items-center space-x-1 bg-white border border-gray-300 px-3 py-1 rounded text-[10px] font-bold uppercase shadow-sm h-[38px]"
+                                    >
+                                        <Download className="h-4 w-4 mr-1" /> Export
+                                    </button>
+
+                                    {Object.keys(pendingChanges).length > 0 && (
+                                        <button
+                                            onClick={saveAllChanges}
+                                            disabled={saving}
+                                            className="flex items-center bg-emerald-700 text-white px-3 py-1 rounded text-[10px] font-bold uppercase shadow-md hover:bg-emerald-800 animate-pulse h-[38px]"
+                                        >
+                                            <Save className="h-4 w-4 mr-1" />
+                                            <span>Simpan ({Object.keys(pendingChanges).length})</span>
+                                        </button>
+                                    )}
+                                </div>
                             </div>
                         </div>
 
-                        <div className="flex justify-between items-center mt-3 mb-2">
-                            <p className="text-gray-600 text-xs font-semibold">
-                                {TABS.find(t => t.id === activeTab)?.label}: Jumlah {filteredData.length} rekod dijumpai
+                        <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center mt-3 px-1 gap-2">
+                            <p className="text-gray-500 text-[10px] font-bold uppercase tracking-widest">
+                                {TABS.find(t => t.id === activeTab)?.label}: {filteredData.length} REKOD DIJUMPAI
                             </p>
-                            <div className="flex items-center space-x-2">
+                            <div className="flex flex-wrap items-center justify-end gap-2 w-full sm:w-auto">
                                 {Object.keys(columnFilters).length > 0 && (
                                     <button
                                         onClick={clearAllFilters}
-                                        className="px-3 py-1 bg-red-50 text-red-600 rounded text-xs font-medium hover:bg-red-100 transition-colors"
+                                        className="text-red-600 text-[10px] font-bold uppercase hover:underline mr-2"
                                     >
-                                        Padam Semua Filter
-                                    </button>
-                                )}
-                                <button
-                                    onClick={loadData}
-                                    disabled={loading}
-                                    className="flex items-center justify-center space-x-1 whitespace-nowrap bg-white text-gray-700 border border-gray-300 hover:bg-gray-50 px-3 py-1 rounded text-xs font-medium shadow-sm transition-colors"
-                                >
-                                    <RefreshCw className={`h-4 w-4 ${loading ? 'animate-spin' : ''}`} />
-                                    <span>Muat Semula</span>
-                                </button>
-                                <button
-                                    onClick={exportToCSV}
-                                    className="flex items-center justify-center space-x-1 whitespace-nowrap bg-white text-gray-700 border border-gray-300 hover:bg-gray-50 px-3 py-1 rounded text-xs font-medium shadow-sm transition-colors"
-                                >
-                                    <Download className="h-4 w-4" />
-                                    <span>Export CSV</span>
-                                </button>
-                                {Object.keys(pendingChanges).length > 0 && (
-                                    <button
-                                        onClick={saveAllChanges}
-                                        disabled={saving}
-                                        className="flex items-center justify-center space-x-1 whitespace-nowrap bg-emerald-600 text-white hover:bg-emerald-700 px-4 py-1 rounded text-xs font-bold shadow-md transition-all animate-pulse"
-                                    >
-                                        <Save className="h-4 w-4 mr-1" />
-                                        <span>Simpan {Object.keys(pendingChanges).length} Perubahan</span>
+                                        Padam Filter
                                     </button>
                                 )}
                             </div>
@@ -850,9 +890,11 @@ export default function RakanHidayahKPIPage() {
                                                 <div className="flex items-center justify-start gap-1">
                                                     {(role === 'admin' || role === 'editor') && (
                                                         <>
-                                                            <button onClick={() => handleDuplicateRow(row)} className="p-1 text-blue-600 hover:bg-blue-100 rounded transition-colors" title="Salin (Duplicate) Rekod">
-                                                                <Copy className="h-4 w-4" />
-                                                            </button>
+                                                            {!['pasukan_rh', 'rh_aktif', 'ikram'].includes(activeTab) && (
+                                                                <button onClick={() => handleDuplicateRow(row)} className="p-1 text-blue-600 hover:bg-blue-100 rounded transition-colors" title="Salin (Duplicate) Rekod">
+                                                                    <Copy className="h-4 w-4" />
+                                                                </button>
+                                                            )}
                                                             <button
                                                                 onClick={() => handleDelete(row.id)}
                                                                 className="p-1 text-red-600 hover:bg-red-100 rounded transition-colors"
@@ -868,44 +910,43 @@ export default function RakanHidayahKPIPage() {
                                             {/* TAHUN COLUMN */}
                                             <td className={`py-1 px-2 border-r border-gray-200 ${pendingChanges[row.id]?.['year'] !== undefined ? 'bg-amber-50' : 'bg-white'}`}>
                                                 {isSpreadsheetMode ? (
-                                                    <div className="relative">
-                                                        <select
-                                                            value={pendingChanges[row.id]?.['year'] !== undefined ? pendingChanges[row.id].year : (row.year || '')}
-                                                            onChange={(e) => handleCellChange(row.id, 'year', Number(e.target.value))}
-                                                            className="w-full bg-white border border-slate-200 rounded pl-1 pr-5 py-0.5 text-[10px] appearance-none"
-                                                        >
-                                                            {years.map(y => <option key={y} value={y}>{y}</option>)}
-                                                        </select>
-                                                        <ChevronDown className="absolute right-1 top-1/2 -translate-y-1/2 h-3 w-3 text-gray-400 pointer-events-none" />
-                                                    </div>
+                                                    <select
+                                                        value={pendingChanges[row.id]?.['year'] !== undefined ? pendingChanges[row.id].year : (row.year || '')}
+                                                        onChange={(e) => handleCellChange(row.id, 'year', Number(e.target.value))}
+                                                        className={getSelectClass(pendingChanges[row.id]?.['year'] !== undefined ? pendingChanges[row.id].year : (row.year || ''), years)}
+                                                    >
+                                                        {years.map(y => <option key={y} value={y}>{y}</option>)}
+                                                    </select>
                                                 ) : (
                                                     <span>{row.year}</span>
                                                 )}
                                             </td>
 
                                             {/* ZON COLUMN */}
-                                            <td className="py-1 px-2 border-r border-gray-200 bg-gray-50 text-gray-500 font-medium">
+                                            <td className={`py-1 px-2 border-r border-gray-200 bg-gray-50 text-gray-500 font-bold align-middle text-[10px] italic`}>
                                                 {(() => {
-                                                    const currentState = pendingChanges[row.id]?.state !== undefined ? pendingChanges[row.id].state : row.state;
-                                                    const stateObj = states.find(s => s.name === currentState);
-                                                    return stateObj?.zon || '-';
+                                                    const editedState = pendingChanges[row.id]?.state;
+                                                    if (editedState !== undefined) {
+                                                        const stateObj = states.find(s =>
+                                                            s.name?.toString().trim().toLowerCase() === editedState?.toString().trim().toLowerCase()
+                                                        );
+                                                        return stateObj?.zon || '-';
+                                                    }
+                                                    return row.zon || '-';
                                                 })()}
                                             </td>
 
                                             {/* NEGERI COLUMN */}
                                             <td className={`py-1 px-2 border-r border-gray-200 ${pendingChanges[row.id]?.['state'] !== undefined ? 'bg-amber-50' : 'bg-white'}`}>
                                                 {isSpreadsheetMode ? (
-                                                    <div className="relative">
-                                                        <select
-                                                            value={pendingChanges[row.id]?.['state'] !== undefined ? pendingChanges[row.id].state : (row.state || '')}
-                                                            onChange={(e) => handleCellChange(row.id, 'state', e.target.value)}
-                                                            className="w-full bg-white border border-slate-200 rounded pl-1 pr-5 py-0.5 text-[10px] appearance-none truncate"
-                                                        >
-                                                            <option value="">-- Pilih --</option>
-                                                            {states.map((s, index) => <option key={s.id || index} value={s.name}>{s.name}</option>)}
-                                                        </select>
-                                                        <ChevronDown className="absolute right-1 top-1/2 -translate-y-1/2 h-3 w-3 text-gray-400 pointer-events-none" />
-                                                    </div>
+                                                    <select
+                                                        value={pendingChanges[row.id]?.['state'] !== undefined ? pendingChanges[row.id].state : (row.state || '')}
+                                                        onChange={(e) => handleCellChange(row.id, 'state', e.target.value)}
+                                                        className={getSelectClass(pendingChanges[row.id]?.['state'] !== undefined ? pendingChanges[row.id].state : (row.state || ''), states.map(s => s.name))}
+                                                    >
+                                                        <option value=""></option>
+                                                        {states.map((s, index) => <option key={s.id || index} value={s.name}>{s.name}</option>)}
+                                                    </select>
                                                 ) : (
                                                     <span>{row.state}</span>
                                                 )}
@@ -935,72 +976,44 @@ export default function RakanHidayahKPIPage() {
                                                         const rowStateName = pendingChanges[row.id]?.['state'] !== undefined ? pendingChanges[row.id].state : (row.state || '');
                                                         const stateObj = states.find(s => s.name === rowStateName);
                                                         const dropdownOptions = stateObj?.cawangan || [];
-                                                        const datalistId = `list-${col.id}-${rowStateName.replace(/\s+/g, '-')}`;
 
                                                         return (
                                                             <td key={col.id} className={`py-1 px-2 border-r border-gray-200 ${isEdited ? 'bg-amber-50' : 'bg-white'} align-top`}>
-                                                                {isSpreadsheetMode ? (
-                                                                    <div className="relative group">
-                                                                        <input
-                                                                            type="text"
-                                                                            list={datalistId}
-                                                                            value={rawValue || ''}
-                                                                            onChange={(e) => handleCellChange(row.id, col.id, e.target.value)}
-                                                                            placeholder="Pilih/Taip..."
-                                                                            className="w-full bg-white border border-slate-200 rounded pl-1 pr-5 py-0.5 text-[10px] focus:ring-1 focus:ring-emerald-500 outline-none truncate"
-                                                                        />
-                                                                        <ChevronDown className="absolute right-1 top-1/2 -translate-y-1/2 h-3 w-3 text-gray-400 pointer-events-none group-hover:text-emerald-500 transition-colors" />
-                                                                        <datalist id={datalistId}>
-                                                                            {dropdownOptions.map(loc => (
-                                                                                <option key={loc} value={loc} />
-                                                                            ))}
-                                                                        </datalist>
-                                                                    </div>
-                                                                ) : (
-                                                                    <div className="truncate max-w-[150px]" title={rawValue}>
-                                                                        {rawValue || '-'}
-                                                                    </div>
-                                                                )}
+                                                                <input
+                                                                    type="text"
+                                                                    list={`list-${col.id}-${rowStateName.replace(/\s+/g, '-')}`}
+                                                                    value={rawValue || ''}
+                                                                    onChange={(e) => handleCellChange(row.id, col.id, e.target.value)}
+                                                                    className={getSelectClass(rawValue, dropdownOptions, true)}
+                                                                    placeholder=""
+                                                                />
+                                                                <datalist id={`list-${col.id}-${rowStateName.replace(/\s+/g, '-')}`}>
+                                                                    {dropdownOptions.map(loc => (
+                                                                        <option key={loc} value={loc} />
+                                                                    ))}
+                                                                </datalist>
                                                             </td>
                                                         );
                                                     }
 
                                                     if (col.type === 'select-agama' || col.type === 'select-bangsa' || col.type === 'select-jenis-rh') {
                                                         let dropdownOptions = [];
-                                                        let placeholder = '';
-
-                                                        if (col.type === 'select-agama') {
-                                                            dropdownOptions = religions;
-                                                            placeholder = 'Pilih Agama';
-                                                        } else if (col.type === 'select-bangsa') {
-                                                            dropdownOptions = races;
-                                                            placeholder = 'Pilih Bangsa';
-                                                        } else if (col.type === 'select-jenis-rh') {
-                                                            dropdownOptions = ["DU'AT", "Sukarelawan"];
-                                                            placeholder = 'Pilih Jenis';
-                                                        }
+                                                        if (col.type === 'select-agama') dropdownOptions = religions;
+                                                        else if (col.type === 'select-bangsa') dropdownOptions = races;
+                                                        else if (col.type === 'select-jenis-rh') dropdownOptions = ["DU'AT", "Sukarelawan"];
 
                                                         return (
                                                             <td key={col.id} className={`py-1 px-2 border-r border-gray-200 ${isEdited ? 'bg-amber-50' : 'bg-white'} align-top`}>
-                                                                {isSpreadsheetMode ? (
-                                                                    <div className="relative">
-                                                                        <select
-                                                                            value={rawValue || ''}
-                                                                            onChange={(e) => handleCellChange(row.id, col.id, e.target.value)}
-                                                                            className="w-full bg-white border border-slate-200 rounded pl-1 pr-5 py-0.5 text-[10px] focus:ring-1 focus:ring-emerald-500 outline-none appearance-none truncate"
-                                                                        >
-                                                                            <option value="">{placeholder}</option>
-                                                                            {dropdownOptions.length > 0 ? [...dropdownOptions].sort().map(opt => (
-                                                                                <option key={opt} value={opt}>{opt}</option>
-                                                                            )) : <option disabled>Tiada Pilihan</option>}
-                                                                        </select>
-                                                                        <ChevronDown className="absolute right-1 top-1/2 -translate-y-1/2 h-3 w-3 text-gray-400 pointer-events-none" />
-                                                                    </div>
-                                                                ) : (
-                                                                    <div className="truncate max-w-[150px]" title={rawValue}>
-                                                                        {rawValue || '-'}
-                                                                    </div>
-                                                                )}
+                                                                <select
+                                                                    value={rawValue || ''}
+                                                                    onChange={(e) => handleCellChange(row.id, col.id, e.target.value)}
+                                                                    className={getSelectClass(rawValue, dropdownOptions)}
+                                                                >
+                                                                    <option value=""></option>
+                                                                    {dropdownOptions.map(opt => (
+                                                                        <option key={opt} value={opt}>{opt}</option>
+                                                                    ))}
+                                                                </select>
                                                             </td>
                                                         );
                                                     }
@@ -1013,98 +1026,65 @@ export default function RakanHidayahKPIPage() {
                                                         }));
 
                                                         const selectedOption = mualafOptions.find(opt => opt.value === rawValue) || null;
+                                                        const isValid = !rawValue || mualafOptions.some(o => o.value === rawValue);
 
                                                         return (
                                                             <td key={col.id} className={`py-1 px-2 border-r border-gray-200 ${isEdited ? 'bg-amber-50' : 'bg-white'} align-top`}>
-                                                                {isSpreadsheetMode ? (
-                                                                    <div className="min-w-[180px]">
-                                                                        <Select
-                                                                            options={mualafOptions}
-                                                                            value={selectedOption}
-                                                                            onChange={(selected) => {
-                                                                                handleCellChange(row.id, col.id, selected ? selected.value : '');
-                                                                                if (selected) {
-                                                                                    // Auto-fill nama_mualaf
-                                                                                    handleCellChange(row.id, 'nama_mualaf', selected.nama);
-                                                                                }
-                                                                            }}
-                                                                            placeholder="Cari ID / Nama..."
-                                                                            isClearable
-                                                                            formatOptionLabel={(option, { context }) => (
-                                                                                <div className={context === 'menu' ? 'text-[9px]' : 'text-[10px]'}>
-                                                                                    {context === 'menu' ? option.label : option.value}
-                                                                                </div>
-                                                                            )}
-                                                                            menuPortalTarget={typeof window !== 'undefined' ? document.body : null}
-                                                                            menuPosition="fixed"
-                                                                            className="text-[10px]"
-                                                                            styles={{
-                                                                                menuPortal: base => ({ ...base, zIndex: 9999 }),
-                                                                                control: (base) => ({
-                                                                                    ...base,
-                                                                                    minHeight: '26px',
-                                                                                    height: '26px',
-                                                                                    fontSize: '10px'
-                                                                                }),
-                                                                                valueContainer: (base) => ({
-                                                                                    ...base,
-                                                                                    padding: '0 4px',
-                                                                                }),
-                                                                                input: (base) => ({
-                                                                                    ...base,
-                                                                                    margin: 0,
-                                                                                    padding: 0
-                                                                                }),
-                                                                                indicatorsContainer: (base) => ({
-                                                                                    ...base,
-                                                                                    height: '26px'
-                                                                                })
-                                                                            }}
-                                                                        />
-                                                                    </div>
-                                                                ) : (
-                                                                    <div className="truncate max-w-[200px]" title={rawValue}>
-                                                                        {rawValue || '-'}
-                                                                    </div>
-                                                                )}
+                                                                <div className="min-w-[180px]">
+                                                                    <Select
+                                                                        options={mualafOptions}
+                                                                        value={selectedOption}
+                                                                        onChange={(selected) => {
+                                                                            handleCellChange(row.id, col.id, selected ? selected.value : '');
+                                                                            if (selected) {
+                                                                                handleCellChange(row.id, 'nama_mualaf', selected.nama);
+                                                                            }
+                                                                        }}
+                                                                        isClearable
+                                                                        formatOptionLabel={(option, { context }) => (
+                                                                            <div className={context === 'menu' ? 'text-[9px]' : 'text-[10px]'}>
+                                                                                {context === 'menu' ? option.label : <span className={!isValid ? 'text-red-600 font-bold' : ''}>{option.value}</span>}
+                                                                            </div>
+                                                                        )}
+                                                                        menuPortalTarget={typeof window !== 'undefined' ? document.body : null}
+                                                                        menuPosition="fixed"
+                                                                        className="text-[10px]"
+                                                                        styles={{
+                                                                            menuPortal: base => ({ ...base, zIndex: 9999 }),
+                                                                            control: (base) => ({
+                                                                                ...base,
+                                                                                minHeight: '26px',
+                                                                                height: '26px',
+                                                                                fontSize: '10px',
+                                                                                borderColor: !isValid ? '#fecaca' : base.borderColor,
+                                                                                backgroundColor: !isValid ? '#fef2f2' : base.backgroundColor
+                                                                            })
+                                                                        }}
+                                                                    />
+                                                                </div>
                                                             </td>
                                                         );
                                                     }
 
                                                     if (col.type === 'sukarelawan-search') {
-                                                        const lookup = sukarelawanList.find(s => s.noStaf?.toString() === rawValue?.toString());
-                                                        const notFound = rawValue && !lookup;
-
+                                                        const volNoStafs = sukarelawanList.map(s => s.noStaf);
                                                         return (
-                                                            <td key={col.id} className={`py-1 px-2 border-r border-gray-200 ${isEdited ? 'bg-amber-50' : 'bg-white'} ${notFound ? 'bg-red-50' : ''} align-top`}>
-                                                                {isSpreadsheetMode ? (
-                                                                    <div className="relative group">
-                                                                        <input
-                                                                            type="text"
-                                                                            list="sukarelawan-datalist"
-                                                                            value={rawValue || ''}
-                                                                            onChange={(e) => {
-                                                                                const val = e.target.value;
-                                                                                handleCellChange(row.id, col.id, val);
-                                                                                const found = sukarelawanList.find(s => s.noStaf?.toString() === val);
-                                                                                if (found) {
-                                                                                    handleCellChange(row.id, 'nama', found.nama);
-                                                                                }
-                                                                            }}
-                                                                            className={`w-full bg-white border rounded px-1 py-0.5 text-[10px] focus:ring-1 focus:ring-emerald-500 outline-none transition-colors ${notFound ? 'border-red-500 text-red-600 font-bold bg-red-50' : 'border-gray-200'}`}
-                                                                            placeholder="No. Ahli..."
-                                                                        />
-                                                                        {notFound && (
-                                                                            <div className="absolute hidden group-hover:block z-50 bg-red-600 text-white text-[9px] p-1 rounded -top-8 left-0 whitespace-nowrap shadow-lg">
-                                                                                ID tidak dijumpai dalam pangkalan data pekerja
-                                                                            </div>
-                                                                        )}
-                                                                    </div>
-                                                                ) : (
-                                                                    <div className={`truncate max-w-[200px] ${notFound ? 'text-red-600 font-bold' : ''}`} title={rawValue}>
-                                                                        {rawValue || '-'}
-                                                                    </div>
-                                                                )}
+                                                            <td key={col.id} className={`py-1 px-2 border-r border-gray-200 ${isEdited ? 'bg-amber-50' : 'bg-white'} align-top`}>
+                                                                <input
+                                                                    type="text"
+                                                                    list="sukarelawan-datalist"
+                                                                    value={rawValue || ''}
+                                                                    onChange={(e) => {
+                                                                        const val = e.target.value;
+                                                                        handleCellChange(row.id, col.id, val);
+                                                                        const found = sukarelawanList.find(s => s.noStaf?.toString() === val);
+                                                                        if (found) {
+                                                                            handleCellChange(row.id, 'nama', found.nama);
+                                                                        }
+                                                                    }}
+                                                                    className={getSelectClass(rawValue, volNoStafs, true)}
+                                                                    placeholder=""
+                                                                />
                                                             </td>
                                                         );
                                                     }
@@ -1264,11 +1244,20 @@ export default function RakanHidayahKPIPage() {
                                             })}
                                         </tr>
                                     ))}
-                                    {/* Scroll Observer Target */}
-                                    {hasMore && (
+                                    {hasMore ? (
                                         <tr ref={observerTarget}>
-                                            <td colSpan={currentColumns.length + 2} className="py-4 text-center">
+                                            <td colSpan={currentColumns.length + 4} className="py-4 text-center">
                                                 <Loader2 className="h-5 w-5 animate-spin mx-auto text-emerald-500" />
+                                            </td>
+                                        </tr>
+                                    ) : (
+                                        <tr>
+                                            <td colSpan={currentColumns.length + 4} className="py-8 text-center bg-gray-50 border-t border-gray-200">
+                                                <div className="flex flex-col items-center justify-center space-y-2">
+                                                    <div className="h-px w-12 bg-gray-300"></div>
+                                                    <span className="text-[10px] font-bold text-gray-400 uppercase tracking-[0.2em]">AKHIR SENARAI</span>
+                                                    <span className="text-[9px] text-gray-400 font-medium">MENAMPILKAN {filteredData.length} REKOD</span>
+                                                </div>
                                             </td>
                                         </tr>
                                     )}

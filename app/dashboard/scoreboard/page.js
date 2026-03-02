@@ -79,11 +79,11 @@ export default function ScoreboardPage() {
 
     // Calculate Achievements for Summary Cards
     const summaryData = useMemo(() => {
-        if (!stats) return CATEGORIES.map(cat => ({ ...cat, target: 0, actual: 0, percent: 0, data: [] }));
+        if (!stats || !stats.rawKpi) return CATEGORIES.map(cat => ({ ...cat, target: 0, actual: 0, percent: 0, data: [] }));
 
         return CATEGORIES.map(cat => {
             const catData = stats.rawKpi.filter(d =>
-                (d.jenis === cat.id || d.jenis === cat.id.toUpperCase()) &&
+                d && (d.jenis === cat.id || d.jenis === (cat.id || '').toUpperCase()) &&
                 (!d.month || d.month === selectedMonth)
             );
 
@@ -110,23 +110,23 @@ export default function ScoreboardPage() {
 
     // Calculate YTD Progress for the circle indicator
     const overallProgress = useMemo(() => {
-        if (!stats) return 0;
-        const totalTarget = stats.rawKpi.reduce((acc, curr) => acc + curr.sasaran, 0);
-        const totalActual = stats.rawKpi.reduce((acc, curr) => acc + curr.pencapaian, 0);
+        if (!stats || !stats.rawKpi) return 0;
+        const totalTarget = stats.rawKpi.reduce((acc, curr) => acc + (curr.sasaran || 0), 0);
+        const totalActual = stats.rawKpi.reduce((acc, curr) => acc + (curr.pencapaian || 0), 0);
         return totalTarget > 0 ? Math.round((totalActual / totalTarget) * 100) : 0;
     }, [stats]);
 
     // Calculate Area Chart Data for Monthly Trend
     const areaChartData = useMemo(() => {
-        if (!stats) return [];
+        if (!stats || !stats.rawKpi) return [];
         const monthsShort = ['Jan', 'Feb', 'Mac', 'Apr', 'Mei', 'Jun', 'Jul', 'Ogo', 'Sep', 'Okt', 'Nov', 'Dis'];
         return monthsShort.map((m, i) => {
             const mIdx = i + 1;
             const mData = stats.rawKpi.filter(d => d.month === mIdx);
             return {
                 name: m,
-                target: mData.reduce((acc, curr) => acc + curr.sasaran, 0),
-                actual: mData.reduce((acc, curr) => acc + curr.pencapaian, 0)
+                target: mData.reduce((acc, curr) => acc + (curr.sasaran || 0), 0),
+                actual: mData.reduce((acc, curr) => acc + (curr.pencapaian || 0), 0)
             };
         });
     }, [stats]);

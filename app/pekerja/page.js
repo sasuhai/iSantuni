@@ -8,8 +8,8 @@ import { supabase } from '@/lib/supabase/client';
 import { getStates, getLocationsTable, getLookupData, fetchAll } from '@/lib/supabase/database';
 import Navbar from '@/components/Navbar';
 import ProtectedRoute from '@/components/ProtectedRoute';
-import { Search, Plus, Edit2, Trash2, User, X, MapPin, Download, ChevronLeft, ChevronRight, ArrowUp, ArrowDown, ArrowUpDown, RefreshCw, Loader2, ChevronDown } from 'lucide-react';
-import { PETUGAS_KATEGORI_ELAUN, NEGERI_CAWANGAN_OPTIONS, BANK_OPTIONS } from '@/lib/constants';
+import { Search, Plus, Edit2, Trash2, User, X, MapPin, Download, ChevronLeft, ChevronRight, ArrowUp, ArrowDown, ArrowUpDown, RefreshCw, Loader2, ChevronDown, Save, LayoutGrid, Table } from 'lucide-react';
+import { PETUGAS_KATEGORI_ELAUN, NEGERI_CAWANGAN_OPTIONS, BANK_OPTIONS, JANTINA_OPTIONS } from '@/lib/constants';
 
 // Role Color helper
 const getRoleColorParams = (role) => {
@@ -90,6 +90,179 @@ const WorkerRow = React.memo(({ worker, openModal, handleDelete }) => {
     );
 });
 
+// Spreadsheet Row Component
+const EditableWorkerRow = React.memo(({ worker, handleEdit, saveRow, isSaving, hasChanges, states, locations, banks, roles }) => {
+    // Validation Helpers
+    const isValueInOptions = (val, options) => {
+        if (!val) return true;
+        const normalizedVal = val.toString().trim();
+        return options.some(opt => {
+            const optVal = (typeof opt === 'string' ? opt : (opt.value ?? opt.label ?? '')).toString().trim();
+            return optVal === normalizedVal;
+        });
+    };
+
+    const getSelectClass = (val, options) => {
+        const base = "w-full bg-transparent border-none p-1 text-[10px] focus:ring-1 focus:ring-emerald-500 rounded";
+        if (!val) return base;
+        return !isValueInOptions(val, options) ? `${base} text-red-600 font-bold` : base;
+    };
+
+    // Derived Locations based on Negeri
+    const filteredLocations = React.useMemo(() => {
+        if (!worker.negeri) return locations;
+        const filtered = locations.filter(l => l.state_name === worker.negeri);
+        // If negeri is 'wrong' or has no locations, show all to help user fix it
+        return filtered.length > 0 ? filtered : locations;
+    }, [locations, worker.negeri]);
+
+    return (
+        <tr className="border-b border-gray-100 hover:bg-emerald-50/50 transition-colors group">
+            <td className="sticky left-0 z-10 bg-emerald-50/80 py-1 px-1 shadow-[1px_0_0_0_#10b981] min-w-[100px]">
+                <input
+                    type="text"
+                    className="w-full bg-transparent border-none p-1 text-xs font-mono uppercase focus:ring-1 focus:ring-emerald-500 rounded"
+                    value={worker.staff_id || ''}
+                    onChange={(e) => handleEdit(worker.id, 'staff_id', e.target.value)}
+                />
+            </td>
+            <td className="sticky left-[100px] z-10 bg-emerald-50/80 py-1 px-1 shadow-[1px_0_0_0_#10b981] min-w-[180px]">
+                <input
+                    type="text"
+                    className="w-full bg-transparent border-none p-1 text-xs font-semibold focus:ring-1 focus:ring-emerald-500 rounded"
+                    value={worker.nama || ''}
+                    onChange={(e) => handleEdit(worker.id, 'nama', e.target.value)}
+                />
+            </td>
+            <td className="sticky left-[280px] z-10 bg-emerald-50/80 py-1 px-1 shadow-[1px_0_0_0_#10b981] min-w-[80px]">
+                <button
+                    onClick={() => saveRow(worker.id)}
+                    disabled={!hasChanges || isSaving}
+                    className={`p-1.5 rounded-lg transition-all ${hasChanges ? 'bg-emerald-600 text-white shadow-md hover:scale-110 active:scale-95' : 'text-gray-300 pointer-events-none'}`}
+                >
+                    {isSaving ? <Loader2 className="h-4 w-4 animate-spin" /> : <Save className="h-4 w-4" />}
+                </button>
+            </td>
+
+            <td className="py-1 px-1 bg-white border-r border-gray-100 min-w-[120px]">
+                <select
+                    className={getSelectClass(worker.peranan, roles)}
+                    value={worker.peranan || ''}
+                    onChange={(e) => handleEdit(worker.id, 'peranan', e.target.value)}
+                >
+                    {!worker.peranan && <option value=""></option>}
+                    {worker.peranan && !isValueInOptions(worker.peranan, roles) && <option value={worker.peranan}>{worker.peranan}</option>}
+                    {roles.map(r => <option key={r} value={r}>{r}</option>)}
+                </select>
+            </td>
+            <td className="py-1 px-1 bg-white border-r border-gray-100 min-w-[130px]">
+                <select
+                    className={getSelectClass(worker.negeri, states)}
+                    value={worker.negeri || ''}
+                    onChange={(e) => handleEdit(worker.id, 'negeri', e.target.value)}
+                >
+                    {!worker.negeri && <option value=""></option>}
+                    {worker.negeri && !isValueInOptions(worker.negeri, states) && <option value={worker.negeri}>{worker.negeri}</option>}
+                    {states.map(s => <option key={s} value={s}>{s}</option>)}
+                </select>
+            </td>
+            <td className="py-1 px-1 bg-white border-r border-gray-100 min-w-[130px]">
+                <select
+                    className={getSelectClass(worker.lokasi, locations.map(l => l.name))}
+                    value={worker.lokasi || ''}
+                    onChange={(e) => handleEdit(worker.id, 'lokasi', e.target.value)}
+                >
+                    {!worker.lokasi && <option value=""></option>}
+                    {worker.lokasi && !isValueInOptions(worker.lokasi, locations.map(l => l.name)) && <option value={worker.lokasi}>{worker.lokasi}</option>}
+                    {filteredLocations.map(l => <option key={l.id} value={l.name}>{l.name}</option>)}
+                </select>
+            </td>
+            <td className="py-1 px-1 bg-white border-r border-gray-100 min-w-[130px]">
+                <select
+                    className={getSelectClass(worker.kategoriElaun, PETUGAS_KATEGORI_ELAUN)}
+                    value={worker.kategoriElaun || ''}
+                    onChange={(e) => handleEdit(worker.id, 'kategoriElaun', e.target.value)}
+                >
+                    {!worker.kategoriElaun && <option value=""></option>}
+                    {worker.kategoriElaun && !isValueInOptions(worker.kategoriElaun, PETUGAS_KATEGORI_ELAUN) && <option value={worker.kategoriElaun}>{worker.kategoriElaun}</option>}
+                    {PETUGAS_KATEGORI_ELAUN.map(cat => <option key={cat.value} value={cat.value}>{cat.label}</option>)}
+                </select>
+            </td>
+            <td className="py-1 px-1 bg-white border-r border-gray-100 min-w-[130px]">
+                <input
+                    type="text"
+                    className="w-full bg-transparent border-none p-1 text-xs focus:ring-1 focus:ring-emerald-500 rounded"
+                    value={worker.noKP || ''}
+                    onChange={(e) => handleEdit(worker.id, 'noKP', e.target.value)}
+                />
+            </td>
+            <td className="py-1 px-1 bg-white border-r border-gray-100 min-w-[90px]">
+                <select
+                    className={getSelectClass(worker.jantina, ['Lelaki', 'Perempuan'])}
+                    value={worker.jantina || ''}
+                    onChange={(e) => handleEdit(worker.id, 'jantina', e.target.value)}
+                >
+                    {!worker.jantina && <option value=""></option>}
+                    {worker.jantina && !['Lelaki', 'Perempuan'].includes(worker.jantina) && <option value={worker.jantina}>{worker.jantina}</option>}
+                    <option value="Lelaki">Lelaki</option>
+                    <option value="Perempuan">Perempuan</option>
+                </select>
+            </td>
+            <td className="py-1 px-1 bg-white border-r border-gray-100 min-w-[120px]">
+                <input
+                    type="text"
+                    className="w-full bg-transparent border-none p-1 text-xs focus:ring-1 focus:ring-emerald-500 rounded"
+                    value={worker.tel_bimbit || ''}
+                    onChange={(e) => handleEdit(worker.id, 'tel_bimbit', e.target.value)}
+                />
+            </td>
+            <td className="py-1 px-1 bg-white border-r border-gray-100 min-w-[120px]">
+                <select
+                    className={getSelectClass(worker.bank, banks)}
+                    value={worker.bank || ''}
+                    onChange={(e) => handleEdit(worker.id, 'bank', e.target.value)}
+                >
+                    {!worker.bank && <option value=""></option>}
+                    {worker.bank && !isValueInOptions(worker.bank, banks) && <option value={worker.bank}>{worker.bank}</option>}
+                    {banks.map(b => <option key={b} value={b}>{b}</option>)}
+                </select>
+            </td>
+            <td className="py-1 px-1 bg-white border-r border-gray-100 min-w-[150px]">
+                <input
+                    type="text"
+                    className="w-full bg-transparent border-none p-1 text-xs focus:ring-1 focus:ring-emerald-500 rounded"
+                    value={worker.noAkaun || ''}
+                    onChange={(e) => handleEdit(worker.id, 'noAkaun', e.target.value)}
+                />
+            </td>
+            <td className="py-1 px-1 bg-white border-r border-gray-100 min-w-[110px]">
+                <input
+                    type="date"
+                    className="w-full bg-transparent border-none p-1 text-[10px] focus:ring-1 focus:ring-emerald-500 rounded"
+                    value={worker.tarikh_lahir ? worker.tarikh_lahir.split('T')[0] : ''}
+                    onChange={(e) => handleEdit(worker.id, 'tarikh_lahir', e.target.value)}
+                />
+            </td>
+            <td className="py-1 px-1 bg-white border-r border-gray-100 min-w-[150px]">
+                <input
+                    type="text"
+                    className="w-full bg-transparent border-none p-1 text-xs focus:ring-1 focus:ring-emerald-500 rounded"
+                    value={worker.pekerjaan || ''}
+                    onChange={(e) => handleEdit(worker.id, 'pekerjaan', e.target.value)}
+                />
+            </td>
+            <td className="py-1 px-1 bg-white border-r border-gray-100 min-w-[400px]">
+                <input
+                    type="text"
+                    className="w-full bg-transparent border-none p-1 text-xs focus:ring-1 focus:ring-emerald-500 rounded"
+                    value={worker.kepakaran || ''}
+                    onChange={(e) => handleEdit(worker.id, 'kepakaran', e.target.value)}
+                />
+            </td>
+        </tr>
+    );
+});
+
 // Helper component for filter inputs
 const FilterInput = ({ value, onChange, options, placeholder, listId }) => (
     <div className="relative mt-1">
@@ -127,6 +300,15 @@ export default function WorkersPage() {
     // Filter & Sort State
     const [columnFilters, setColumnFilters] = useState({});
     const [sortConfig, setSortConfig] = useState({ key: 'nama', direction: 'asc' });
+    const [isSpreadsheetMode, setIsSpreadsheetMode] = useState(false);
+
+    // Infinite Scroll State
+    const [displayLimit, setDisplayLimit] = useState(50);
+    const observerTarget = useRef(null);
+    const INCREMENT = 50;
+
+    const [editStates, setEditStates] = useState({});
+    const [savingIds, setSavingIds] = useState(new Set());
 
     // Deferred Filters for Performance
     const deferredFilters = useDeferredValue(columnFilters);
@@ -335,6 +517,81 @@ export default function WorkersPage() {
         });
     }, [workers, deferredFilters, sortConfig]);
 
+    // Infinite Scroll Logic
+    const displayedWorkers = useMemo(() => {
+        return filteredWorkers.slice(0, displayLimit);
+    }, [filteredWorkers, displayLimit]);
+
+    const hasMore = displayLimit < filteredWorkers.length;
+
+    const loadMore = useCallback(() => {
+        if (hasMore) {
+            setDisplayLimit(prev => prev + INCREMENT);
+        }
+    }, [hasMore]);
+
+    useEffect(() => {
+        const observer = new IntersectionObserver(
+            entries => {
+                if (entries[0].isIntersecting && hasMore) {
+                    loadMore();
+                }
+            },
+            { threshold: 0.1 }
+        );
+
+        if (observerTarget.current) {
+            observer.observe(observerTarget.current);
+        }
+
+        return () => observer.disconnect();
+    }, [loadMore, hasMore]);
+
+    useEffect(() => {
+        setDisplayLimit(INCREMENT);
+    }, [deferredFilters]);
+
+    const handleCellEdit = (id, field, value) => {
+        setEditStates(prev => ({
+            ...prev,
+            [id]: { ...(prev[id] || {}), [field]: value }
+        }));
+    };
+
+    const saveRow = async (id) => {
+        const updates = editStates[id];
+        if (!updates) return;
+
+        setSavingIds(prev => new Set(prev).add(id));
+        try {
+            const { error } = await supabase.from('workers').update({
+                ...updates,
+                updatedAt: new Date().toISOString(),
+                updatedBy: user.id
+            }).eq('id', id);
+
+            if (!error) {
+                setWorkers(prev => prev.map(w => w.id === id ? { ...w, ...updates } : w));
+                setEditStates(prev => {
+                    const next = { ...prev };
+                    delete next[id];
+                    return next;
+                });
+                showSuccess('Berjaya', 'Data telah dikemaskini.');
+            } else {
+                showError('Ralat Simpan', error.message);
+            }
+        } catch (e) {
+            showError('Ralat Simpan', e.message);
+        } finally {
+            setSavingIds(prev => {
+                const next = new Set(prev);
+                next.delete(id);
+                return next;
+            });
+        }
+    };
+
     const exportToCSV = () => {
         const headers = ['Nama', 'Peranan', 'No KP', 'Lokasi', 'Negeri', 'Kategori Elaun', 'Bank', 'No Akaun', 'S-ID', 'Jantina', 'Tarikh Daftar', 'Tel Bimbit', 'Email', 'Pekerjaan', 'Kepakaran', 'Tarikh Lahir'];
         const csv = [headers.join(','), ...filteredWorkers.map(w => [w.nama, w.peranan, w.noKP, w.lokasi, w.negeri, w.kategoriElaun, w.bank, w.noAkaun, w.staff_id, w.jantina, w.tarikh_daftar, w.tel_bimbit, w.email, w.pekerjaan, w.kepakaran, w.tarikh_lahir].map(v => `"${(v || '').toString().replace(/"/g, '""')}"`).join(','))].join('\n');
@@ -382,10 +639,6 @@ export default function WorkersPage() {
                             <h1 className="text-xl font-bold text-gray-900 flex items-center">
                                 <User className="h-5 w-5 mr-2 text-emerald-600" /> Pengurusan Petugas
                             </h1>
-                            <div className="flex items-center space-x-2">
-                                <button onClick={initData} className="p-1.5 bg-white text-gray-600 rounded-lg border border-gray-200 shadow-sm transition-transform active:scale-90"><RefreshCw className={`h-4 w-4 ${loading ? 'animate-spin' : ''}`} /></button>
-                                <button onClick={() => openModal()} className="bg-emerald-600 text-white px-3 py-1.5 rounded-lg text-xs font-bold hover:bg-emerald-700 shadow-sm flex items-center transform active:scale-95"><Plus className="h-4 w-4 mr-1" /> Tambah</button>
-                            </div>
                         </div>
 
                         <div className="flex flex-col md:flex-row gap-2 mb-2">
@@ -427,8 +680,25 @@ export default function WorkersPage() {
                         <div className="flex justify-between items-center px-1">
                             <p className="text-gray-600 text-[10px] uppercase font-bold">{filteredWorkers.length} REKOD</p>
                             <div className="flex items-center space-x-2">
-                                {Object.keys(columnFilters).length > 0 && <button onClick={() => setColumnFilters({})} className="text-red-600 text-[10px] font-bold uppercase hover:underline">Padam Filter</button>}
-                                <button onClick={exportToCSV} className="flex items-center space-x-1 bg-white border border-gray-300 px-2 py-1 rounded text-[10px] font-bold uppercase shadow-sm"><Download className="h-3 w-3" /><span>Export</span></button>
+                                {Object.keys(columnFilters).length > 0 && <button onClick={() => setColumnFilters({})} className="text-red-600 text-[10px] font-bold uppercase hover:underline mr-2">Padam Filter</button>}
+
+                                <button onClick={() => setIsSpreadsheetMode(!isSpreadsheetMode)} className={`flex items-center space-x-1 px-2 py-1 rounded border text-[10px] font-bold uppercase transition-all shadow-sm ${isSpreadsheetMode ? 'bg-amber-50 text-amber-700 border-amber-200' : 'bg-white text-gray-700 border-gray-300 hover:bg-gray-50'}`}>
+                                    {isSpreadsheetMode ? <LayoutGrid className="h-3 w-3" /> : <Table className="h-3 w-3" />}
+                                    <span>{isSpreadsheetMode ? 'Mod Biasa' : 'Mod Spreadsheet'}</span>
+                                </button>
+
+                                <button onClick={initData} className="p-1 bg-white text-gray-600 rounded border border-gray-300 shadow-sm transition-transform active:scale-90 flex items-center justify-center h-[26px] w-[26px]">
+                                    <RefreshCw className={`h-3 w-3 ${loading ? 'animate-spin' : ''}`} />
+                                </button>
+
+                                <button onClick={() => openModal()} className="bg-emerald-600 text-white px-2 py-1 rounded text-[10px] font-bold uppercase hover:bg-emerald-700 shadow-sm flex items-center transform active:scale-95 border border-emerald-700 h-[26px]">
+                                    <Plus className="h-3 w-3 mr-1" /> Tambah
+                                </button>
+
+                                <button onClick={exportToCSV} className="flex items-center space-x-1 bg-white border border-gray-300 px-2 py-1 rounded text-[10px] font-bold uppercase shadow-sm h-[26px]">
+                                    <Download className="h-3 w-3" />
+                                    <span>Export</span>
+                                </button>
                             </div>
                         </div>
                     </div>
@@ -473,16 +743,49 @@ export default function WorkersPage() {
                                 </tr>
                             </thead>
                             <tbody>
-                                {filteredWorkers.map((worker) => (
-                                    <WorkerRow
-                                        key={worker.id}
-                                        worker={worker}
-                                        openModal={openModal}
-                                        handleDelete={handleDelete}
-                                    />
-                                ))}
+                                {displayedWorkers.map((worker) => {
+                                    const editedData = editStates[worker.id];
+                                    return isSpreadsheetMode ? (
+                                        <EditableWorkerRow
+                                            key={worker.id}
+                                            worker={{ ...worker, ...editedData }}
+                                            handleEdit={handleCellEdit}
+                                            saveRow={saveRow}
+                                            isSaving={savingIds.has(worker.id)}
+                                            hasChanges={!!editedData}
+                                            states={states.length > 0 ? states : NEGERI_CAWANGAN_OPTIONS}
+                                            locations={locations}
+                                            banks={banks || BANK_OPTIONS}
+                                            roles={['Sukarelawan', 'Guru', 'Petugas', 'Koordinator']}
+                                        />
+                                    ) : (
+                                        <WorkerRow
+                                            key={worker.id}
+                                            worker={worker}
+                                            openModal={openModal}
+                                            handleDelete={handleDelete}
+                                        />
+                                    );
+                                })}
                             </tbody>
                         </table>
+
+                        {/* Intersection Observer Target */}
+                        <div
+                            ref={observerTarget}
+                            className="py-8 flex flex-col items-center justify-center border-t border-gray-100 bg-white"
+                        >
+                            {hasMore ? (
+                                <div className="flex items-center space-x-2 text-emerald-600 font-medium">
+                                    <Loader2 className="h-5 w-5 animate-spin" />
+                                    <span>Memuatkan lebih banyak rekod...</span>
+                                </div>
+                            ) : filteredWorkers.length > 0 ? (
+                                <div className="text-gray-400 text-[10px] font-bold uppercase tracking-widest italic">
+                                    — AKHIR SENARAI ({filteredWorkers.length} REKOD) —
+                                </div>
+                            ) : null}
+                        </div>
                     </div>
                 </div>
 
@@ -498,42 +801,149 @@ export default function WorkersPage() {
                                 <button onClick={() => setIsModalOpen(false)} className="p-2 hover:bg-gray-100 rounded-full transition-colors"><X className="h-6 w-6 text-gray-400" /></button>
                             </div>
                             <form onSubmit={handleSubmit} className="space-y-6">
-                                <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                                    <div className="md:col-span-2">
-                                        <label className="block text-xs font-bold text-gray-400 uppercase tracking-widest mb-2">Nama Penuh <span className="text-red-500">*</span></label>
-                                        <input type="text" required className="w-full px-4 py-3 bg-gray-50 border-0 rounded-2xl focus:ring-2 focus:ring-emerald-500 font-medium" value={formData.nama} onChange={(e) => setFormData({ ...formData, nama: e.target.value })} />
-                                    </div>
-                                    <div>
-                                        <label className="block text-xs font-bold text-gray-400 uppercase tracking-widest mb-2">Negeri <span className="text-red-500">*</span></label>
-                                        <select className="w-full px-4 py-3 bg-gray-50 border-0 rounded-2xl focus:ring-2 focus:ring-emerald-500 font-medium" required value={formData.negeri} onChange={(e) => setFormData({ ...formData, negeri: e.target.value, lokasi: '' })}>
-                                            <option value="">-- Pilih --</option>
-                                            {(states.length > 0 ? states : NEGERI_CAWANGAN_OPTIONS).map(negeri => <option key={negeri} value={negeri}>{negeri}</option>)}
-                                        </select>
-                                    </div>
-                                    <div>
-                                        <label className="block text-xs font-bold text-gray-400 uppercase tracking-widest mb-2">Lokasi <span className="text-red-500">*</span></label>
-                                        <select required className="w-full px-4 py-3 bg-gray-50 border-0 rounded-2xl focus:ring-2 focus:ring-emerald-500 font-medium disabled:opacity-50" value={formData.lokasi} onChange={(e) => setFormData({ ...formData, lokasi: e.target.value })} disabled={!formData.negeri}>
-                                            <option value="">-- Pilih --</option>
-                                            {modalLocations.map(loc => <option key={loc.id || loc.name} value={loc.name}>{loc.name}</option>)}
-                                        </select>
-                                    </div>
-                                    <div>
-                                        <label className="block text-xs font-bold text-gray-400 uppercase tracking-widest mb-2">Peranan</label>
-                                        <select className="w-full px-4 py-3 bg-gray-50 border-0 rounded-2xl focus:ring-2 focus:ring-emerald-500 font-medium" value={formData.peranan} onChange={(e) => setFormData({ ...formData, peranan: e.target.value })}>
-                                            <option value="Sukarelawan">Sukarelawan</option>
-                                            <option value="Guru">Guru</option>
-                                            <option value="Petugas">Petugas</option>
-                                            <option value="Koordinator">Koordinator</option>
-                                        </select>
-                                    </div>
-                                    <div>
-                                        <label className="block text-xs font-bold text-gray-400 uppercase tracking-widest mb-2">No. KP <span className="text-red-500">*</span></label>
-                                        <input type="text" required className="w-full px-4 py-3 bg-gray-50 border-0 rounded-2xl focus:ring-2 focus:ring-emerald-500 font-medium" value={formData.noKP} onChange={(e) => setFormData({ ...formData, noKP: e.target.value })} />
-                                    </div>
+                                <div className="max-h-[60vh] overflow-y-auto px-1 space-y-8 custom-scrollbar">
+                                    {/* Section: Maklumat Peribadi */}
+                                    <section>
+                                        <div className="flex items-center gap-2 mb-4">
+                                            <div className="h-1 w-8 bg-emerald-500 rounded-full"></div>
+                                            <h4 className="text-sm font-black text-gray-800 uppercase tracking-wider">Maklumat Peribadi</h4>
+                                        </div>
+                                        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                                            <div className="md:col-span-2">
+                                                <label className="block text-[10px] font-bold text-gray-400 uppercase tracking-widest mb-1.5">Nama Penuh <span className="text-red-500">*</span></label>
+                                                <input type="text" required className="w-full px-4 py-2 bg-gray-50 border border-gray-100 rounded-xl focus:ring-2 focus:ring-emerald-500 focus:bg-white transition-all font-medium text-sm" value={formData.nama} onChange={(e) => setFormData({ ...formData, nama: e.target.value })} />
+                                            </div>
+                                            <div>
+                                                <label className="block text-[10px] font-bold text-gray-400 uppercase tracking-widest mb-1.5">No. Kad Pengenalan <span className="text-red-500">*</span></label>
+                                                <input type="text" required className="w-full px-4 py-2 bg-gray-50 border border-gray-100 rounded-xl focus:ring-2 focus:ring-emerald-500 focus:bg-white transition-all font-medium text-sm" value={formData.noKP} onChange={(e) => setFormData({ ...formData, noKP: e.target.value })} />
+                                            </div>
+                                            <div>
+                                                <label className="block text-[10px] font-bold text-gray-400 uppercase tracking-widest mb-1.5">Jantina</label>
+                                                <select className="w-full px-4 py-2 bg-gray-50 border border-gray-100 rounded-xl focus:ring-2 focus:ring-emerald-500 transition-all font-medium text-sm" value={formData.jantina} onChange={(e) => setFormData({ ...formData, jantina: e.target.value })}>
+                                                    <option value="">Pilih</option>
+                                                    <option value="Lelaki">Lelaki</option>
+                                                    <option value="Perempuan">Perempuan</option>
+                                                </select>
+                                            </div>
+                                            <div>
+                                                <label className="block text-[10px] font-bold text-gray-400 uppercase tracking-widest mb-1.5">Tarikh Lahir</label>
+                                                <input type="date" className="w-full px-4 py-2 bg-gray-50 border border-gray-100 rounded-xl focus:ring-2 focus:ring-emerald-500 transition-all font-medium text-sm" value={formData.tarikh_lahir ? formData.tarikh_lahir.split('T')[0] : ''} onChange={(e) => setFormData({ ...formData, tarikh_lahir: e.target.value })} />
+                                            </div>
+                                            <div>
+                                                <label className="block text-[10px] font-bold text-gray-400 uppercase tracking-widest mb-1.5">No. Telefon Bimbit</label>
+                                                <input type="text" className="w-full px-4 py-2 bg-gray-50 border border-gray-100 rounded-xl focus:ring-2 focus:ring-emerald-500 transition-all font-medium text-sm" value={formData.tel_bimbit} onChange={(e) => setFormData({ ...formData, tel_bimbit: e.target.value })} />
+                                            </div>
+                                            <div className="md:col-span-2">
+                                                <label className="block text-[10px] font-bold text-gray-400 uppercase tracking-widest mb-1.5">Email</label>
+                                                <input type="email" className="w-full px-4 py-2 bg-gray-50 border border-gray-100 rounded-xl focus:ring-2 focus:ring-emerald-500 transition-all font-medium text-sm" value={formData.email} onChange={(e) => setFormData({ ...formData, email: e.target.value })} />
+                                            </div>
+                                        </div>
+                                    </section>
+
+                                    {/* Section: Kediaman & Lokasi Tugas */}
+                                    <section>
+                                        <div className="flex items-center gap-2 mb-4">
+                                            <div className="h-1 w-8 bg-blue-500 rounded-full"></div>
+                                            <h4 className="text-sm font-black text-gray-800 uppercase tracking-wider">Kediaman & Lokasi Tugas</h4>
+                                        </div>
+                                        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                                            <div>
+                                                <label className="block text-[10px] font-bold text-gray-400 uppercase tracking-widest mb-1.5">Negeri Cawangan <span className="text-red-500">*</span></label>
+                                                <select className="w-full px-4 py-2 bg-gray-50 border border-gray-100 rounded-xl focus:ring-2 focus:ring-emerald-500 transition-all font-medium text-sm" required value={formData.negeri} onChange={(e) => setFormData({ ...formData, negeri: e.target.value, lokasi: '' })}>
+                                                    <option value="">Pilih</option>
+                                                    {(states.length > 0 ? states : NEGERI_CAWANGAN_OPTIONS).map(negeri => <option key={negeri} value={negeri}>{negeri}</option>)}
+                                                </select>
+                                            </div>
+                                            <div>
+                                                <label className="block text-[10px] font-bold text-gray-400 uppercase tracking-widest mb-1.5">Lokasi Tugas <span className="text-red-500">*</span></label>
+                                                <select required className="w-full px-4 py-2 bg-gray-50 border border-gray-100 rounded-xl focus:ring-2 focus:ring-emerald-500 transition-all font-medium text-sm disabled:opacity-50" value={formData.lokasi} onChange={(e) => setFormData({ ...formData, lokasi: e.target.value })} disabled={!formData.negeri}>
+                                                    <option value="">Pilih</option>
+                                                    {modalLocations.map(loc => <option key={loc.id || loc.name} value={loc.name}>{loc.name}</option>)}
+                                                </select>
+                                            </div>
+                                            <div>
+                                                <label className="block text-[10px] font-bold text-gray-400 uppercase tracking-widest mb-1.5">Daerah Kediaman</label>
+                                                <input type="text" className="w-full px-4 py-2 bg-gray-50 border border-gray-100 rounded-xl focus:ring-2 focus:ring-emerald-500 transition-all font-medium text-sm" value={formData.daerah_kediaman} onChange={(e) => setFormData({ ...formData, daerah_kediaman: e.target.value })} />
+                                            </div>
+                                            <div>
+                                                <label className="block text-[10px] font-bold text-gray-400 uppercase tracking-widest mb-1.5">Negeri Kediaman</label>
+                                                <select className="w-full px-4 py-2 bg-gray-50 border border-gray-100 rounded-xl focus:ring-2 focus:ring-emerald-500 transition-all font-medium text-sm" value={formData.negeri_kediaman} onChange={(e) => setFormData({ ...formData, negeri_kediaman: e.target.value })}>
+                                                    <option value="">Pilih</option>
+                                                    {NEGERI_CAWANGAN_OPTIONS.map(n => <option key={n} value={n}>{n}</option>)}
+                                                </select>
+                                            </div>
+                                        </div>
+                                    </section>
+
+                                    {/* Section: Peranan & Kewangan */}
+                                    <section>
+                                        <div className="flex items-center gap-2 mb-4">
+                                            <div className="h-1 w-8 bg-amber-500 rounded-full"></div>
+                                            <h4 className="text-sm font-black text-gray-800 uppercase tracking-wider">Peranan & Kewangan</h4>
+                                        </div>
+                                        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                                            <div>
+                                                <label className="block text-[10px] font-bold text-gray-400 uppercase tracking-widest mb-1.5">Staff ID / S-ID</label>
+                                                <input type="text" className="w-full px-4 py-2 bg-gray-50 border border-gray-100 rounded-xl focus:ring-2 focus:ring-emerald-500 transition-all font-medium text-sm font-mono" value={formData.staff_id} onChange={(e) => setFormData({ ...formData, staff_id: e.target.value })} />
+                                            </div>
+                                            <div>
+                                                <label className="block text-[10px] font-bold text-gray-400 uppercase tracking-widest mb-1.5">Peranan</label>
+                                                <select className="w-full px-4 py-2 bg-gray-50 border border-gray-100 rounded-xl focus:ring-2 focus:ring-emerald-500 transition-all font-medium text-sm" value={formData.peranan} onChange={(e) => setFormData({ ...formData, peranan: e.target.value })}>
+                                                    <option value="Sukarelawan">Sukarelawan</option>
+                                                    <option value="Guru">Guru</option>
+                                                    <option value="Petugas">Petugas</option>
+                                                    <option value="Koordinator">Koordinator</option>
+                                                </select>
+                                            </div>
+                                            <div>
+                                                <label className="block text-[10px] font-bold text-gray-400 uppercase tracking-widest mb-1.5">Kategori Elaun</label>
+                                                <select className="w-full px-4 py-2 bg-gray-50 border border-gray-100 rounded-xl focus:ring-2 focus:ring-emerald-500 transition-all font-medium text-sm" value={formData.kategoriElaun} onChange={(e) => setFormData({ ...formData, kategoriElaun: e.target.value })}>
+                                                    <option value="">Tiada Elaun</option>
+                                                    {PETUGAS_KATEGORI_ELAUN.map(cat => <option key={cat.value} value={cat.value}>{cat.label}</option>)}
+                                                </select>
+                                            </div>
+                                            <div>
+                                                <label className="block text-[10px] font-bold text-gray-400 uppercase tracking-widest mb-1.5">Bank</label>
+                                                <select className="w-full px-4 py-2 bg-gray-50 border border-gray-100 rounded-xl focus:ring-2 focus:ring-emerald-500 transition-all font-medium text-sm" value={formData.bank} onChange={(e) => setFormData({ ...formData, bank: e.target.value })}>
+                                                    <option value="">Pilih Bank</option>
+                                                    {(banks.length > 0 ? banks : BANK_OPTIONS).map(b => <option key={b} value={b}>{b}</option>)}
+                                                </select>
+                                            </div>
+                                            <div className="md:col-span-2">
+                                                <label className="block text-[10px] font-bold text-gray-400 uppercase tracking-widest mb-1.5">No. Akaun Bank</label>
+                                                <input type="text" className="w-full px-4 py-2 bg-gray-50 border border-gray-100 rounded-xl focus:ring-2 focus:ring-emerald-500 transition-all font-medium text-sm font-mono" value={formData.noAkaun} onChange={(e) => setFormData({ ...formData, noAkaun: e.target.value })} />
+                                            </div>
+                                        </div>
+                                    </section>
+
+                                    {/* Section: Lain-lain */}
+                                    <section>
+                                        <div className="flex items-center gap-2 mb-4">
+                                            <div className="h-1 w-8 bg-purple-500 rounded-full"></div>
+                                            <h4 className="text-sm font-black text-gray-800 uppercase tracking-wider">Lain-lain</h4>
+                                        </div>
+                                        <div className="grid grid-cols-1 gap-4">
+                                            <div>
+                                                <label className="block text-[10px] font-bold text-gray-400 uppercase tracking-widest mb-1.5">Tarikh Daftar</label>
+                                                <input type="date" className="w-full px-4 py-2 bg-gray-50 border border-gray-100 rounded-xl focus:ring-2 focus:ring-emerald-500 transition-all font-medium text-sm" value={formData.tarikh_daftar ? formData.tarikh_daftar.split('T')[0] : ''} onChange={(e) => setFormData({ ...formData, tarikh_daftar: e.target.value })} />
+                                            </div>
+                                            <div>
+                                                <label className="block text-[10px] font-bold text-gray-400 uppercase tracking-widest mb-1.5">Pekerjaan</label>
+                                                <input type="text" className="w-full px-4 py-2 bg-gray-50 border border-gray-100 rounded-xl focus:ring-2 focus:ring-emerald-500 transition-all font-medium text-sm" value={formData.pekerjaan} onChange={(e) => setFormData({ ...formData, pekerjaan: e.target.value })} />
+                                            </div>
+                                            <div>
+                                                <label className="block text-[10px] font-bold text-gray-400 uppercase tracking-widest mb-1.5">Kepakaran / Pengalaman</label>
+                                                <textarea rows={3} className="w-full px-4 py-2 bg-gray-50 border border-gray-100 rounded-xl focus:ring-2 focus:ring-emerald-500 transition-all font-medium text-sm" value={formData.kepakaran} onChange={(e) => setFormData({ ...formData, kepakaran: e.target.value })} />
+                                            </div>
+                                        </div>
+                                    </section>
                                 </div>
-                                <div className="pt-8 flex justify-end gap-4 border-t border-gray-100">
-                                    <button type="button" onClick={() => setIsModalOpen(false)} className="px-6 py-3 text-sm font-bold text-gray-400 uppercase tracking-widest">Batal</button>
-                                    <button type="submit" className="px-8 py-3 bg-emerald-600 text-white rounded-2xl text-sm font-bold uppercase tracking-widest hover:bg-emerald-700 shadow-lg shadow-emerald-200 transform active:scale-95">Simpan</button>
+
+                                <div className="pt-6 flex justify-end gap-3 border-t border-gray-100">
+                                    <button type="button" onClick={() => setIsModalOpen(false)} className="px-6 py-2.5 text-xs font-black text-gray-400 uppercase tracking-widest hover:text-gray-600 transition-colors">Batal</button>
+                                    <button type="submit" className="px-10 py-2.5 bg-emerald-600 text-white rounded-xl text-xs font-black uppercase tracking-widest hover:bg-emerald-700 shadow-lg shadow-emerald-200 transform transition-all active:scale-95 flex items-center gap-2">
+                                        <Save className="h-4 w-4" /> Simpan Rekod
+                                    </button>
                                 </div>
                             </form>
                         </div>

@@ -6,8 +6,9 @@ import { useModal } from '@/contexts/ModalContext';
 import { supabase } from '@/lib/supabase/client';
 import ProtectedRoute from '@/components/ProtectedRoute';
 import Navbar from '@/components/Navbar';
-import { Plus, Search, Filter, Activity, FileText, ArrowUp, ArrowDown, ArrowUpDown, Trash2, Loader2, RefreshCw, Download, Save, LayoutGrid, ChevronDown } from 'lucide-react';
+import { Plus, Search, Filter, Activity, FileText, ArrowUp, ArrowDown, ArrowUpDown, Trash2, Loader2, RefreshCw, Download, Save, LayoutGrid, ChevronDown, Table } from 'lucide-react';
 import Select from 'react-select';
+import { getStates } from '@/lib/supabase/database';
 
 const TABS = [
     { id: 'kpi_utama', label: 'KPI Utama' },
@@ -83,6 +84,52 @@ const COLUMNS_MAP = {
     ]
 };
 
+const isValueInOptions = (val, options) => {
+    if (!val || !options || !Array.isArray(options) || options.length === 0) return true;
+    const cleanVal = val.toString().trim().toLowerCase();
+    return options.some(opt => {
+        if (!opt && opt !== 0) return false;
+        const optVal = typeof opt === 'object' ? (opt.value || opt.label || opt.name || opt) : opt;
+        return optVal?.toString().trim().toLowerCase() === cleanVal;
+    });
+};
+
+const getSelectClass = (val, options, isInput = false) => {
+    const base = `w-full bg-white border border-slate-200 rounded px-1 py-0.5 text-[10px] focus:ring-1 focus:ring-emerald-500 transition-all ${isInput ? 'h-[22px]' : ''}`;
+    if (!val) return base;
+
+    const isInvalid = Array.isArray(val)
+        ? val.some(v => !isValueInOptions(v, options))
+        : !isValueInOptions(val, options);
+
+    return isInvalid ? `${base} text-red-600 font-bold border-red-200 bg-red-50` : base;
+};
+
+const formatOnlyDate = (dateStr) => {
+    if (!dateStr) return '-';
+    try {
+        const date = new Date(dateStr);
+        return date.toLocaleDateString('ms-MY', {
+            day: '2-digit', month: '2-digit', year: 'numeric'
+        });
+    } catch (e) {
+        return dateStr;
+    }
+};
+
+const formatDate = (dateStr) => {
+    if (!dateStr) return '-';
+    try {
+        const date = new Date(dateStr);
+        return date.toLocaleString('ms-MY', {
+            day: '2-digit', month: '2-digit', year: 'numeric',
+            hour: '2-digit', minute: '2-digit'
+        });
+    } catch (e) {
+        return dateStr;
+    }
+};
+
 const FilterInput = ({ value, onChange, options, placeholder, listId }) => (
     <div className="relative mt-1">
         <input
@@ -137,13 +184,26 @@ export default function OtherKPIPage() {
 
     const currentColumns = COLUMNS_MAP[activeTab];
 
+    const uniqueMualafList = useMemo(() => {
+        const seen = new Set();
+        return mualafList.filter(m => {
+            if (seen.has(m.noStaf)) return false;
+            seen.add(m.noStaf);
+            return true;
+        });
+    }, [mualafList]);
+
     const loadData = async () => {
         setLoading(true);
         try {
             // Load states once
+            let currentStates = states;
             if (states.length === 0) {
-                const { data: statesRes } = await supabase.from('states').select('*').order('name');
-                if (statesRes) setStates(statesRes);
+                const { data: statesRes } = await getStates();
+                if (statesRes) {
+                    setStates(statesRes);
+                    currentStates = statesRes;
+                }
             }
 
             // Load mualaf and lookup data for dropdown if needed
@@ -180,13 +240,19 @@ export default function OtherKPIPage() {
             if (error) throw error;
 
             // Flatten JSON for easier rendering
-            let flattenedData = data.map(item => ({
-                id: item.id,
-                year: item.year,
-                state: item.state,
-                createdAt: item.createdAt,
-                ...item.data
-            }));
+            let flattenedData = data.map(item => {
+                const stateObj = currentStates.find(s =>
+                    s.name?.toString().trim().toLowerCase() === item.state?.toString().trim().toLowerCase()
+                );
+                return {
+                    id: item.id,
+                    year: item.year,
+                    state: item.state,
+                    zon: stateObj?.zon || '-',
+                    createdAt: item.createdAt,
+                    ...item.data
+                };
+            });
 
             if (activeTab === 'kpi_utama') {
                 const allowedJenis = ['Mualaf', 'Outreach'];
@@ -553,98 +619,102 @@ export default function OtherKPIPage() {
                             ))}
                         </div>
 
-                        <div className="bg-white rounded-xl p-4 mt-3 mb-1 shadow-sm border border-slate-200 flex items-center justify-between">
-                            <div className="w-1/4 mr-4">
-                                <label className="block text-[10px] font-bold text-slate-500 uppercase tracking-wider mb-1">Tahun</label>
-                                <select
-                                    className="w-full bg-slate-50 border border-slate-200 text-slate-800 rounded-lg px-3 py-2 focus:outline-none focus:ring-2 focus:ring-emerald-500/20 focus:border-emerald-500 text-sm font-medium"
-                                    value={selectedYear}
-                                    onChange={(e) => setSelectedYear(Number(e.target.value))}
-                                >
-                                    <option value={0}>Semua Tahun</option>
-                                    {availableYears.map(y => <option key={y.value} value={y.value}>{y.label}</option>)}
-                                    {!availableYears.some(y => y.value === selectedYear) && selectedYear !== 0 && (
-                                        <option value={selectedYear}>{selectedYear}</option>
-                                    )}
-                                </select>
-                            </div>
-
-                            <div className="w-1/4 mr-4">
-                                <label className="block text-[10px] font-bold text-slate-500 uppercase tracking-wider mb-1">Negeri / Kawasan</label>
-                                <select
-                                    className="w-full bg-slate-50 border border-slate-200 text-slate-800 rounded-lg px-3 py-2 focus:outline-none focus:ring-2 focus:ring-emerald-500/20 focus:border-emerald-500 text-sm font-medium"
-                                    value={selectedState}
-                                    onChange={(e) => setSelectedState(e.target.value)}
-                                >
-                                    <option value="">Semua Negeri</option>
-                                    {availableStates.map(s => <option key={s.value} value={s.value}>{s.label}</option>)}
-                                    {!availableStates.some(s => s.value === selectedState) && selectedState !== '' && (
-                                        <option value={selectedState}>{selectedState}</option>
-                                    )}
-                                </select>
-                            </div>
-
-                            <div className="flex items-end h-full space-x-2">
-                                {(role === 'admin' || role === 'editor') && (
-                                    <button
-                                        onClick={() => {
-                                            if (isSpreadsheetMode) {
-                                                setPendingChanges({});
-                                            }
-                                            setIsSpreadsheetMode(!isSpreadsheetMode);
-                                        }}
-                                        className={`inline-flex items-center justify-center px-4 py-2 rounded-lg transition-all font-medium text-sm shadow-sm h-10 ${isSpreadsheetMode ? 'bg-amber-100 text-amber-700 border border-amber-300' : 'bg-white text-emerald-700 border border-emerald-300 hover:bg-emerald-50'}`}
+                        <div className="bg-white rounded-xl p-4 mt-3 mb-1 shadow-sm border border-slate-200">
+                            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4 items-end">
+                                <div>
+                                    <label className="block text-[10px] font-bold text-slate-500 uppercase tracking-wider mb-1">Tahun</label>
+                                    <select
+                                        className="w-full bg-slate-50 border border-slate-200 text-slate-800 rounded-lg px-3 py-2 focus:outline-none focus:ring-2 focus:ring-emerald-500/20 focus:border-emerald-500 text-sm font-medium h-[38px]"
+                                        value={selectedYear}
+                                        onChange={(e) => setSelectedYear(Number(e.target.value))}
                                     >
-                                        <LayoutGrid className="h-4 w-4 mr-2" />
-                                        {isSpreadsheetMode ? 'Batal Edit' : 'Edit Data'}
+                                        <option value={0}>Semua Tahun</option>
+                                        {availableYears.map(y => <option key={y.value} value={y.value}>{y.label}</option>)}
+                                        {!availableYears.some(y => y.value === selectedYear) && selectedYear !== 0 && (
+                                            <option value={selectedYear}>{selectedYear}</option>
+                                        )}
+                                    </select>
+                                </div>
+
+                                <div>
+                                    <label className="block text-[10px] font-bold text-slate-500 uppercase tracking-wider mb-1">Negeri / Kawasan</label>
+                                    <select
+                                        className="w-full bg-slate-50 border border-slate-200 text-slate-800 rounded-lg px-3 py-2 focus:outline-none focus:ring-2 focus:ring-emerald-500/20 focus:border-emerald-500 text-sm font-medium h-[38px]"
+                                        value={selectedState}
+                                        onChange={(e) => setSelectedState(e.target.value)}
+                                    >
+                                        <option value="">Semua Negeri</option>
+                                        {availableStates.map(s => <option key={s.value} value={s.value}>{s.label}</option>)}
+                                        {!availableStates.some(s => s.value === selectedState) && selectedState !== '' && (
+                                            <option value={selectedState}>{selectedState}</option>
+                                        )}
+                                    </select>
+                                </div>
+
+                                <div className="lg:col-span-2 flex flex-wrap items-center justify-end gap-2">
+                                    {(role === 'admin' || role === 'editor') && (
+                                        <button
+                                            onClick={() => {
+                                                if (isSpreadsheetMode) {
+                                                    setPendingChanges({});
+                                                }
+                                                setIsSpreadsheetMode(!isSpreadsheetMode);
+                                            }}
+                                            className={`flex items-center space-x-1 px-2 py-1 rounded border text-[10px] font-bold uppercase transition-all shadow-sm h-[38px] ${isSpreadsheetMode ? 'bg-amber-50 text-amber-700 border-amber-200' : 'bg-white text-emerald-700 border-emerald-300 hover:bg-emerald-50'}`}
+                                        >
+                                            {isSpreadsheetMode ? <LayoutGrid className="h-4 w-4 mr-1" /> : <Table className="h-4 w-4 mr-1" />}
+                                            <span>{isSpreadsheetMode ? 'Mod Biasa' : 'Mod Spreadsheet'}</span>
+                                        </button>
+                                    )}
+
+                                    <button
+                                        onClick={loadData}
+                                        disabled={loading}
+                                        className="p-1 bg-white text-gray-600 rounded border border-gray-300 shadow-sm transition-transform active:scale-90 flex items-center justify-center h-[38px] w-[38px]"
+                                        title="Muat Semula"
+                                    >
+                                        <RefreshCw className={`h-4 w-4 ${loading ? 'animate-spin' : ''}`} />
                                     </button>
-                                )}
-                                <button
-                                    onClick={handleAddRow}
-                                    className="inline-flex items-center justify-center px-4 py-2 bg-emerald-600 text-white rounded-lg hover:bg-emerald-700 transition-all font-medium text-sm shadow-sm h-10"
-                                >
-                                    <Plus className="w-4 h-4 mr-2" />
-                                    Tambah Rekod
-                                </button>
+
+                                    <button
+                                        onClick={handleAddRow}
+                                        className="bg-emerald-600 text-white px-3 py-1 rounded text-[10px] font-bold uppercase hover:bg-emerald-700 shadow-sm flex items-center transform active:scale-95 border border-emerald-700 h-[38px]"
+                                    >
+                                        <Plus className="w-4 h-4 mr-1" /> Tambah Rekod
+                                    </button>
+
+                                    <button
+                                        onClick={exportToCSV}
+                                        className="flex items-center space-x-1 bg-white border border-gray-300 px-3 py-1 rounded text-[10px] font-bold uppercase shadow-sm h-[38px]"
+                                    >
+                                        <Download className="h-4 w-4 mr-1" /> Export
+                                    </button>
+
+                                    {Object.keys(pendingChanges).length > 0 && (
+                                        <button
+                                            onClick={saveAllChanges}
+                                            disabled={saving}
+                                            className="flex items-center bg-emerald-700 text-white px-3 py-1 rounded text-[10px] font-bold uppercase shadow-md hover:bg-emerald-800 animate-pulse h-[38px]"
+                                        >
+                                            <Save className="h-4 w-4 mr-1" />
+                                            <span>Simpan ({Object.keys(pendingChanges).length})</span>
+                                        </button>
+                                    )}
+                                </div>
                             </div>
                         </div>
 
-                        <div className="flex justify-between items-center mt-3 mb-2">
-                            <p className="text-gray-600 text-xs font-semibold">
-                                {TABS.find(t => t.id === activeTab)?.label}: Jumlah {filteredData.length} rekod dijumpai
+                        <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center mt-3 px-1 gap-2">
+                            <p className="text-gray-500 text-[10px] font-bold uppercase tracking-widest">
+                                {TABS.find(t => t.id === activeTab)?.label}: {filteredData.length} REKOD DIJUMPAI
                             </p>
-                            <div className="flex items-center space-x-2">
+                            <div className="flex flex-wrap items-center justify-end gap-2 w-full sm:w-auto">
                                 {Object.keys(columnFilters).length > 0 && (
                                     <button
                                         onClick={clearAllFilters}
-                                        className="px-3 py-1 bg-red-50 text-red-600 rounded text-xs font-medium hover:bg-red-100 transition-colors"
+                                        className="text-red-600 text-[10px] font-bold uppercase hover:underline mr-2"
                                     >
-                                        Padam Semua Filter
-                                    </button>
-                                )}
-                                <button
-                                    onClick={loadData}
-                                    disabled={loading}
-                                    className="flex items-center justify-center space-x-1 whitespace-nowrap bg-white text-gray-700 border border-gray-300 hover:bg-gray-50 px-3 py-1 rounded text-xs font-medium shadow-sm transition-colors"
-                                >
-                                    <RefreshCw className={`h-4 w-4 ${loading ? 'animate-spin' : ''}`} />
-                                    <span>Muat Semula</span>
-                                </button>
-                                <button
-                                    onClick={exportToCSV}
-                                    className="flex items-center justify-center space-x-1 whitespace-nowrap bg-white text-gray-700 border border-gray-300 hover:bg-gray-50 px-3 py-1 rounded text-xs font-medium shadow-sm transition-colors"
-                                >
-                                    <Download className="h-4 w-4" />
-                                    <span>Export CSV</span>
-                                </button>
-                                {Object.keys(pendingChanges).length > 0 && (
-                                    <button
-                                        onClick={saveAllChanges}
-                                        disabled={saving}
-                                        className="flex items-center justify-center space-x-1 whitespace-nowrap bg-emerald-600 text-white hover:bg-emerald-700 px-4 py-1 rounded text-xs font-bold shadow-md transition-all animate-pulse"
-                                    >
-                                        <Save className="h-4 w-4 mr-1" />
-                                        <span>Simpan {Object.keys(pendingChanges).length} Perubahan</span>
+                                        Padam Filter
                                     </button>
                                 )}
                             </div>
@@ -695,6 +765,26 @@ export default function OtherKPIPage() {
                                                 onChange={(val) => handleFilterChange('year', val)}
                                                 options={getUniqueValues('year')}
                                                 listId="list-year"
+                                                placeholder="Semua"
+                                            />
+                                        </th>
+                                        <th className="sticky top-0 z-30 bg-emerald-100 text-left py-1 px-2 font-semibold text-gray-700 border-r border-gray-200 border-b-2 border-emerald-500 min-w-[120px] align-top">
+                                            <div
+                                                className="flex items-center cursor-pointer mb-1 group"
+                                                onClick={() => handleSort('zon')}
+                                            >
+                                                <span>Zon</span>
+                                                {sortConfig.key === 'zon' ? (
+                                                    sortConfig.direction === 'asc' ? <ArrowUp className="h-3 w-3 ml-1 text-emerald-600" /> : <ArrowDown className="h-3 w-3 ml-1 text-emerald-600" />
+                                                ) : (
+                                                    <ArrowUpDown className="h-3 w-3 ml-1 text-gray-400 opacity-0 group-hover:opacity-100 transition-opacity" />
+                                                )}
+                                            </div>
+                                            <FilterInput
+                                                value={columnFilters['zon']}
+                                                onChange={(val) => handleFilterChange('zon', val)}
+                                                options={getUniqueValues('zon')}
+                                                listId="list-zon"
                                                 placeholder="Semua"
                                             />
                                         </th>
@@ -775,7 +865,7 @@ export default function OtherKPIPage() {
                                                     <select
                                                         value={pendingChanges[row.id]?.['year'] !== undefined ? pendingChanges[row.id].year : (row.year || '')}
                                                         onChange={(e) => handleCellChange(row.id, 'year', Number(e.target.value))}
-                                                        className="w-full bg-white border border-slate-200 rounded px-1 py-0.5 text-[10px]"
+                                                        className={getSelectClass(pendingChanges[row.id]?.['year'] !== undefined ? pendingChanges[row.id].year : (row.year || ''), years)}
                                                     >
                                                         {years.map(y => <option key={y} value={y}>{y}</option>)}
                                                     </select>
@@ -784,15 +874,29 @@ export default function OtherKPIPage() {
                                                 )}
                                             </td>
 
+                                            {/* ZON COLUMN */}
+                                            <td className={`py-1 px-2 border-r border-gray-200 bg-gray-50 text-gray-500 font-bold align-middle text-[10px] italic`}>
+                                                {(() => {
+                                                    const editedState = pendingChanges[row.id]?.state;
+                                                    if (editedState !== undefined) {
+                                                        const stateObj = states.find(s =>
+                                                            s.name?.toString().trim().toLowerCase() === editedState?.toString().trim().toLowerCase()
+                                                        );
+                                                        return stateObj?.zon || '-';
+                                                    }
+                                                    return row.zon || '-';
+                                                })()}
+                                            </td>
+
                                             {/* NEGERI COLUMN */}
                                             <td className={`py-1 px-2 border-r border-gray-200 ${pendingChanges[row.id]?.['state'] !== undefined ? 'bg-amber-50' : 'bg-white'}`}>
                                                 {isSpreadsheetMode ? (
                                                     <select
                                                         value={pendingChanges[row.id]?.['state'] !== undefined ? pendingChanges[row.id].state : (row.state || '')}
                                                         onChange={(e) => handleCellChange(row.id, 'state', e.target.value)}
-                                                        className="w-full bg-white border border-slate-200 rounded px-1 py-0.5 text-[10px]"
+                                                        className={getSelectClass(pendingChanges[row.id]?.['state'] !== undefined ? pendingChanges[row.id].state : (row.state || ''), states.map(s => s.name))}
                                                     >
-                                                        <option value="">-- Pilih --</option>
+                                                        <option value=""></option>
                                                         {states.map((s, index) => <option key={s.id || index} value={s.name}>{s.name}</option>)}
                                                     </select>
                                                 ) : (
@@ -821,132 +925,96 @@ export default function OtherKPIPage() {
                                                     }
 
                                                     if (col.type === 'select' && col.id === 'kawasan') {
-                                                        // Look up the state of the current row based on row.state
                                                         const rowStateName = pendingChanges[row.id]?.['state'] !== undefined ? pendingChanges[row.id].state : (row.state || '');
                                                         const stateObj = states.find(s => s.name === rowStateName);
                                                         const dropdownOptions = stateObj?.cawangan || [];
+                                                        const datalistId = `list-${col.id}-${row.id}`;
 
                                                         return (
                                                             <td key={col.id} className={`py-1 px-2 border-r border-gray-200 ${isEdited ? 'bg-amber-50' : 'bg-white'} align-top`}>
-                                                                {isSpreadsheetMode ? (
-                                                                    <select
-                                                                        value={rawValue || ''}
-                                                                        onChange={(e) => handleCellChange(row.id, col.id, e.target.value)}
-                                                                        className="w-full bg-white border border-slate-200 rounded px-1 py-0.5 text-[10px] focus:ring-1 focus:ring-emerald-500 outline-none"
-                                                                    >
-                                                                        <option value="">Pilih Kawasan</option>
-                                                                        {dropdownOptions.length > 0 ? [...dropdownOptions].sort().map(loc => (
-                                                                            <option key={loc} value={loc}>{loc}</option>
-                                                                        )) : <option disabled>Tiada Pilihan</option>}
-                                                                    </select>
-                                                                ) : (
-                                                                    <div className="truncate max-w-[150px]" title={rawValue}>
-                                                                        {rawValue || '-'}
-                                                                    </div>
-                                                                )}
+                                                                <input
+                                                                    type="text"
+                                                                    list={datalistId}
+                                                                    value={rawValue || ''}
+                                                                    onChange={(e) => handleCellChange(row.id, col.id, e.target.value)}
+                                                                    className={getSelectClass(rawValue, dropdownOptions, true)}
+                                                                    placeholder=""
+                                                                />
+                                                                <datalist id={datalistId}>
+                                                                    {dropdownOptions.map(loc => (
+                                                                        <option key={loc} value={loc} />
+                                                                    ))}
+                                                                </datalist>
                                                             </td>
                                                         );
                                                     }
 
                                                     if (col.type === 'select-agama' || col.type === 'select-bangsa' || col.type === 'select-jenis') {
                                                         let dropdownOptions = [];
-                                                        let placeholder = '';
-
-                                                        if (col.type === 'select-agama') {
-                                                            dropdownOptions = religions;
-                                                            placeholder = 'Pilih Agama';
-                                                        } else if (col.type === 'select-bangsa') {
-                                                            dropdownOptions = races;
-                                                            placeholder = 'Pilih Bangsa';
-                                                        } else if (col.type === 'select-jenis') {
-                                                            dropdownOptions = ['Mualaf', 'Outreach'];
-                                                            placeholder = 'Pilih Jenis';
-                                                        }
+                                                        if (col.type === 'select-agama') dropdownOptions = religions;
+                                                        else if (col.type === 'select-bangsa') dropdownOptions = races;
+                                                        else if (col.type === 'select-jenis') dropdownOptions = ['Mualaf', 'Outreach'];
 
                                                         return (
                                                             <td key={col.id} className={`py-1 px-2 border-r border-gray-200 ${isEdited ? 'bg-amber-50' : 'bg-white'} align-top`}>
-                                                                {isSpreadsheetMode ? (
-                                                                    <select
-                                                                        value={rawValue || ''}
-                                                                        onChange={(e) => handleCellChange(row.id, col.id, e.target.value)}
-                                                                        className="w-full bg-white border border-slate-200 rounded px-1 py-0.5 text-[10px] focus:ring-1 focus:ring-emerald-500 outline-none"
-                                                                    >
-                                                                        <option value="">{placeholder}</option>
-                                                                        {dropdownOptions.length > 0 ? [...dropdownOptions].sort().map(opt => (
-                                                                            <option key={opt} value={opt}>{opt}</option>
-                                                                        )) : <option disabled>Tiada Pilihan</option>}
-                                                                    </select>
-                                                                ) : (
-                                                                    <div className="truncate max-w-[150px]" title={rawValue}>
-                                                                        {rawValue || '-'}
-                                                                    </div>
-                                                                )}
+                                                                <select
+                                                                    value={rawValue || ''}
+                                                                    onChange={(e) => handleCellChange(row.id, col.id, e.target.value)}
+                                                                    className={getSelectClass(rawValue, dropdownOptions)}
+                                                                >
+                                                                    <option value=""></option>
+                                                                    {dropdownOptions.map(opt => (
+                                                                        <option key={opt} value={opt}>{opt}</option>
+                                                                    ))}
+                                                                </select>
                                                             </td>
                                                         );
                                                     }
 
                                                     if (col.type === 'mualaf-search') {
-                                                        const mualafOptions = mualafList.map(m => ({
+                                                        const mualafOptions = uniqueMualafList.map(m => ({
                                                             value: m.noStaf,
                                                             label: `${m.noStaf} - ${m.namaIslam || m.namaAsal}`,
                                                             nama: m.namaIslam || m.namaAsal
                                                         }));
 
                                                         const selectedOption = mualafOptions.find(opt => opt.value === rawValue) || null;
+                                                        const isValid = !rawValue || mualafOptions.some(o => o.value === rawValue);
 
                                                         return (
                                                             <td key={col.id} className={`py-1 px-2 border-r border-gray-200 ${isEdited ? 'bg-amber-50' : 'bg-white'} align-top`}>
-                                                                {isSpreadsheetMode ? (
-                                                                    <div className="min-w-[180px]">
-                                                                        <Select
-                                                                            options={mualafOptions}
-                                                                            value={selectedOption}
-                                                                            onChange={(selected) => {
-                                                                                handleCellChange(row.id, col.id, selected ? selected.value : '');
-                                                                                if (selected) {
-                                                                                    // Auto-fill nama_mualaf
-                                                                                    handleCellChange(row.id, 'nama_mualaf', selected.nama);
-                                                                                }
-                                                                            }}
-                                                                            placeholder="Cari ID / Nama..."
-                                                                            isClearable
-                                                                            formatOptionLabel={(option, { context }) => (
-                                                                                <div className={context === 'menu' ? 'text-[9px]' : 'text-[10px]'}>
-                                                                                    {context === 'menu' ? option.label : option.value}
-                                                                                </div>
-                                                                            )}
-                                                                            menuPortalTarget={typeof window !== 'undefined' ? document.body : null}
-                                                                            menuPosition="fixed"
-                                                                            className="text-[10px]"
-                                                                            styles={{
-                                                                                menuPortal: base => ({ ...base, zIndex: 9999 }),
-                                                                                control: (base) => ({
-                                                                                    ...base,
-                                                                                    minHeight: '26px',
-                                                                                    height: '26px',
-                                                                                    fontSize: '10px'
-                                                                                }),
-                                                                                valueContainer: (base) => ({
-                                                                                    ...base,
-                                                                                    padding: '0 4px',
-                                                                                }),
-                                                                                input: (base) => ({
-                                                                                    ...base,
-                                                                                    margin: 0,
-                                                                                    padding: 0
-                                                                                }),
-                                                                                indicatorsContainer: (base) => ({
-                                                                                    ...base,
-                                                                                    height: '26px'
-                                                                                })
-                                                                            }}
-                                                                        />
-                                                                    </div>
-                                                                ) : (
-                                                                    <div className="truncate max-w-[200px]" title={rawValue}>
-                                                                        {rawValue || '-'}
-                                                                    </div>
-                                                                )}
+                                                                <div className="min-w-[180px]">
+                                                                    <Select
+                                                                        options={mualafOptions}
+                                                                        value={selectedOption}
+                                                                        onChange={(selected) => {
+                                                                            handleCellChange(row.id, col.id, selected ? selected.value : '');
+                                                                            if (selected) {
+                                                                                handleCellChange(row.id, 'nama_mualaf', selected.nama);
+                                                                            }
+                                                                        }}
+                                                                        isClearable
+                                                                        formatOptionLabel={(option, { context }) => (
+                                                                            <div className={context === 'menu' ? 'text-[9px]' : 'text-[10px]'}>
+                                                                                {context === 'menu' ? option.label : <span className={!isValid ? 'text-red-600 font-bold' : ''}>{option.value}</span>}
+                                                                            </div>
+                                                                        )}
+                                                                        menuPortalTarget={typeof window !== 'undefined' ? document.body : null}
+                                                                        menuPosition="fixed"
+                                                                        className="text-[10px]"
+                                                                        styles={{
+                                                                            menuPortal: base => ({ ...base, zIndex: 9999 }),
+                                                                            control: (base) => ({
+                                                                                ...base,
+                                                                                minHeight: '26px',
+                                                                                height: '26px',
+                                                                                fontSize: '10px',
+                                                                                borderColor: !isValid ? '#fecaca' : base.borderColor,
+                                                                                backgroundColor: !isValid ? '#fef2f2' : base.backgroundColor
+                                                                            })
+                                                                        }}
+                                                                    />
+                                                                </div>
                                                             </td>
                                                         );
                                                     }
@@ -963,14 +1031,29 @@ export default function OtherKPIPage() {
                                                             </td>
                                                         );
                                                     }
+
                                                     if (col.type === 'date') {
                                                         return (
                                                             <td key={col.id} className={`py-1 px-2 border-r border-gray-200 ${isEdited ? 'bg-amber-50' : 'bg-white'}`}>
                                                                 <input
-                                                                    type="date"
+                                                                    type={rawValue ? "date" : "text"}
+                                                                    onFocus={(e) => (e.target.type = "date")}
+                                                                    onBlur={(e) => { if (!e.target.value) e.target.type = "text"; }}
                                                                     value={rawValue || ''}
                                                                     onChange={(e) => handleCellChange(row.id, col.id, e.target.value)}
                                                                     className="w-full bg-white border border-slate-200 rounded px-1 py-0.5 text-[10px]"
+                                                                />
+                                                            </td>
+                                                        );
+                                                    }
+
+                                                    if (col.type === 'textarea') {
+                                                        return (
+                                                            <td key={col.id} className={`py-1 px-2 border-r border-gray-200 ${isEdited ? 'bg-amber-50' : 'bg-white'}`}>
+                                                                <textarea
+                                                                    value={rawValue || ''}
+                                                                    onChange={(e) => handleCellChange(row.id, col.id, e.target.value)}
+                                                                    className="w-full bg-white border border-slate-200 rounded px-1 py-0.5 text-[10px] min-h-[60px]"
                                                                 />
                                                             </td>
                                                         );
@@ -983,14 +1066,13 @@ export default function OtherKPIPage() {
                                                                     type="text"
                                                                     value={rawValue || ''}
                                                                     readOnly
-                                                                    className="w-full bg-slate-100 border border-slate-200 rounded px-1 py-0.5 text-[10px] text-slate-500 cursor-not-allowed cursor-not-allowed"
+                                                                    className="w-full bg-slate-100 border border-slate-200 rounded px-1 py-0.5 text-[10px] text-slate-500 cursor-not-allowed"
                                                                     title="Diisi secara automatik"
                                                                 />
                                                             </td>
                                                         );
                                                     }
 
-                                                    // Default text
                                                     return (
                                                         <td key={col.id} className={`py-1 px-2 border-r border-gray-200 ${isEdited ? 'bg-amber-50' : 'bg-white'}`}>
                                                             <input
@@ -1018,19 +1100,35 @@ export default function OtherKPIPage() {
                                                         </td>
                                                     )
                                                 }
+                                                if (col.type === 'textarea') {
+                                                    return (
+                                                        <td key={col.id} className="py-1 px-2 border-r border-gray-200 whitespace-pre-wrap">
+                                                            {rawValue}
+                                                        </td>
+                                                    );
+                                                }
                                                 return (
-                                                    <td key={col.id} className="py-1 px-2 border-r border-gray-200">
-                                                        {rawValue}
+                                                    <td key={col.id} className={`py-1 px-2 border-r border-gray-200 ${col.type === 'number' ? 'text-center' : ''}`}>
+                                                        {col.type === 'date' ? formatOnlyDate(rawValue) : rawValue}
                                                     </td>
                                                 );
                                             })}
                                         </tr>
                                     ))}
-                                    {/* Scroll Observer Target */}
-                                    {hasMore && (
+                                    {hasMore ? (
                                         <tr ref={observerTarget}>
-                                            <td colSpan={currentColumns.length + 2} className="py-4 text-center">
+                                            <td colSpan={currentColumns.length + 4} className="py-4 text-center">
                                                 <Loader2 className="h-5 w-5 animate-spin mx-auto text-emerald-500" />
+                                            </td>
+                                        </tr>
+                                    ) : (
+                                        <tr>
+                                            <td colSpan={currentColumns.length + 4} className="py-8 text-center bg-gray-50 border-t border-gray-200">
+                                                <div className="flex flex-col items-center justify-center space-y-2">
+                                                    <div className="h-px w-12 bg-gray-300"></div>
+                                                    <span className="text-[10px] font-bold text-gray-400 uppercase tracking-[0.2em]">AKHIR SENARAI</span>
+                                                    <span className="text-[9px] text-gray-400 font-medium">MENAMPILKAN {filteredData.length} REKOD</span>
+                                                </div>
                                             </td>
                                         </tr>
                                     )}
@@ -1039,6 +1137,12 @@ export default function OtherKPIPage() {
                         </div>
                     )}
                 </div>
+                {/* Global Datalist for Mualaf Search */}
+                <datalist id="datalist-mualaf">
+                    {uniqueMualafList.map(m => (
+                        <option key={m.noStaf} value={m.noStaf}>{m.namaIslam || m.namaAsal}</option>
+                    ))}
+                </datalist>
             </div>
         </ProtectedRoute>
     );
