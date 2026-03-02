@@ -15,7 +15,7 @@ const DB_HOST = process.env.DB_HOST || '151.106.124.161';
 const dbConfig = {
     host: DB_HOST,
     user: 'u311693590_admin_isantuni',
-    password: 'iSantuni2026',
+    password: 'HIDDEN_PASSWORD',
     database: 'u311693590_isantuni_v2',
 };
 

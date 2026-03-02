@@ -8,7 +8,7 @@ const mysql = require('mysql2/promise');
 const dbConfig = {
     host: '151.106.124.161',
     user: 'u311693590_admin_isantuni',
-    password: 'iSantuni2026',
+    password: 'HIDDEN_PASSWORD',
     database: 'u311693590_isantuni_v2',
 };
 
