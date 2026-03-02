@@ -49,19 +49,56 @@ export async function GET(request) {
             params.push(value);
         }
 
-        sql += ' ORDER BY tarikh_mula DESC';
+        const order = searchParams.get('_order') || 'tarikh_mula';
+        const dir = searchParams.get('_dir') || 'DESC';
+        sql += ` ORDER BY \`${order}\` ${dir.toUpperCase() === 'ASC' ? 'ASC' : 'DESC'}`;
+
+        const limit = searchParams.get('_limit');
+        if (limit) {
+            sql += ' LIMIT ?';
+            params.push(parseInt(limit));
+        }
 
         const results = await query(sql, params);
 
-        // Parse JSON fields
-        const parsedResults = results.map(p => ({
-            ...p,
-            kawasan_cawangan: typeof p.kawasan_cawangan === 'string' ? JSON.parse(p.kawasan_cawangan) : (p.kawasan_cawangan || []),
-            jenis_program: typeof p.jenis_program === 'string' ? JSON.parse(p.jenis_program) : (p.jenis_program || []),
-            sub_kategori: typeof p.sub_kategori === 'string' ? JSON.parse(p.sub_kategori) : (p.sub_kategori || []),
-            anjuran: typeof p.anjuran === 'string' ? JSON.parse(p.anjuran) : (p.anjuran || []),
-            selesai_laporan: !!p.selesai_laporan
-        }));
+        // Parse JSON fields and format dates to YYYY-MM-DD
+        const parsedResults = results.map(p => {
+            const formatLocalDate = (dateVal) => {
+                if (!dateVal) return dateVal;
+                if (dateVal instanceof Date) {
+                    try {
+                        return dateVal.toISOString().split('T')[0];
+                    } catch (e) { return dateVal; }
+                }
+                if (typeof dateVal === 'string' && dateVal.includes('T')) {
+                    return dateVal.split('T')[0];
+                }
+                return dateVal;
+            };
+
+            const safeParse = (val) => {
+                if (!val) return [];
+                if (typeof val !== 'string') return Array.isArray(val) ? val : [val];
+                try {
+                    const parsed = JSON.parse(val);
+                    return Array.isArray(parsed) ? parsed : [parsed];
+                } catch (e) {
+                    if (val.includes(',')) return val.split(',').map(s => s.trim()).filter(Boolean);
+                    return val ? [val] : [];
+                }
+            };
+
+            return {
+                ...p,
+                tarikh_mula: formatLocalDate(p.tarikh_mula),
+                tarikh_tamat: formatLocalDate(p.tarikh_tamat),
+                kawasan_cawangan: safeParse(p.kawasan_cawangan),
+                jenis_program: safeParse(p.jenis_program),
+                sub_kategori: safeParse(p.sub_kategori),
+                anjuran: safeParse(p.anjuran),
+                selesai_laporan: !!p.selesai_laporan
+            };
+        });
 
         return NextResponse.json(parsedResults);
     } catch (error) {

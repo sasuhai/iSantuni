@@ -265,8 +265,15 @@ export default function KalendarProgram() {
             textColor = '#7f1d1d'; // red-900
         }
 
-        const startDate = prog.tarikh_mula || '';
-        const endDate = prog.tarikh_tamat || '';
+        // Clean up dates - extract YYYY-MM-DD from potential ISO strings
+        const cleanDate = (d) => {
+            if (!d) return '';
+            if (typeof d === 'string' && d.includes('T')) return d.split('T')[0];
+            return d;
+        };
+
+        const startDate = cleanDate(prog.tarikh_mula);
+        const endDate = cleanDate(prog.tarikh_tamat);
 
         let start = startDate;
         let end = endDate;
@@ -278,26 +285,32 @@ export default function KalendarProgram() {
         }
 
         if (endDate && prog.masa_tamat) {
-            // Need to handle multi-day with specific time. Fullcalendar uses T
             end = `${endDate}T${formatTimeForCalendar(prog.masa_tamat)}`;
             allDay = false;
         } else if (!endDate && prog.masa_tamat && startDate) {
             end = `${startDate}T${formatTimeForCalendar(prog.masa_tamat)}`;
+            allDay = false;
         } else if (endDate && startDate !== endDate) {
-            // Include next day for inclusive all-day events
-            const d = new Date(endDate);
-            d.setDate(d.getDate() + 1);
-            end = d.toISOString().split('T')[0];
+            // Include next day for inclusive all-day events if it's strictly YYYY-MM-DD
+            try {
+                const d = new Date(endDate);
+                if (!isNaN(d.getTime())) {
+                    d.setDate(d.getDate() + 1);
+                    end = d.toISOString().split('T')[0];
+                }
+            } catch (e) {
+                console.warn("Invalid end date for incrementing:", endDate);
+            }
             allDay = true;
         }
 
-        if (!start) return; // Skip invalid events
+        if (!start) return;
 
         events.push({
             id: prog.id,
             title: prog.nama_program || 'Tiada Nama',
             start: start,
-            end: end,
+            end: end || undefined, // Use undefined if empty to treat as single-day
             allDay: allDay,
             display: 'block',
             backgroundColor: bgColor,
