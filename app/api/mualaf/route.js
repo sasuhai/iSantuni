@@ -3,7 +3,7 @@ import { query } from '@/lib/db';
 import crypto from 'crypto';
 
 const columns = [
-    'kategori', 'namaAsal', 'namaIslam', 'noKP', 'jantina', 'bangsa', 'agamaAsal', 'umur',
+    'noStaf', 'negeriCawangan', 'kategori', 'namaAsal', 'namaIslam', 'noKP', 'jantina', 'bangsa', 'agamaAsal', 'umur',
     'tarikhLahir', 'warganegara', 'tarikhPengislaman', 'masaPengislaman', 'tempatPengislaman',
     'negeriPengislaman', 'namaPegawaiMengislamkan', 'noKPPegawaiMengislamkan', 'noTelPegawaiMengislamkan',
     'namaSaksi1', 'noKPSaksi1', 'noTelSaksi1', 'namaSaksi2', 'noKPSaksi2', 'noTelSaksi2',

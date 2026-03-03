@@ -16,7 +16,7 @@ export async function POST(request) {
 
         if (users.length === 0) {
             console.log('Login failed: User not found');
-            return NextResponse.json({ error: 'Invalid email or password' }, { status: 401 });
+            return NextResponse.json({ error: 'Emel tidak dijumpai (User not found)' }, { status: 401 });
         }
 
         const user = users[0];
@@ -27,7 +27,7 @@ export async function POST(request) {
 
         if (!passwordMatch) {
             console.log('Login failed: Password mismatch');
-            return NextResponse.json({ error: 'Invalid email or password' }, { status: 401 });
+            return NextResponse.json({ error: 'Kata laluan salah (Incorrect password)' }, { status: 401 });
         }
 
         // Prepare user document for response (excluding password hash)

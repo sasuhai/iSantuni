@@ -33,8 +33,13 @@ export const metadata = {
     images: ['https://hidayahcentre.org.my/wp-content/uploads/2021/06/logo-web2.png'],
   },
   icons: {
-    icon: 'https://hidayahcentre.org.my/wp-content/uploads/2021/06/logo-web2.png',
-    apple: 'https://hidayahcentre.org.my/wp-content/uploads/2021/06/logo-web2.png',
+    icon: [
+      { url: '/favicon.ico' },
+      { url: '/icon.png', sizes: '192x192', type: 'image/png' },
+    ],
+    apple: [
+      { url: '/apple-icon.png', sizes: '180x180', type: 'image/png' },
+    ],
   },
 };
 

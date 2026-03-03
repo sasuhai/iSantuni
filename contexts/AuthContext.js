@@ -17,12 +17,12 @@ export const AuthProvider = ({ children }) => {
     useEffect(() => {
         const initAuth = async () => {
             try {
-                const savedUser = localStorage.getItem('hcf_user');
+                const savedUser = localStorage.getItem('isantuni_user');
                 if (savedUser) {
                     const parsedUser = JSON.parse(savedUser);
                     setUser(parsedUser);
 
-                    const savedProfile = localStorage.getItem('hcf_profile');
+                    const savedProfile = localStorage.getItem('isantuni_profile');
                     if (savedProfile) {
                         const parsedProfile = JSON.parse(savedProfile);
                         setProfile(parsedProfile);
@@ -33,7 +33,7 @@ export const AuthProvider = ({ children }) => {
                         if (freshProfile) {
                             setProfile(freshProfile);
                             setRole(freshProfile.role || 'editor');
-                            localStorage.setItem('hcf_profile', JSON.stringify(freshProfile));
+                            localStorage.setItem('isantuni_profile', JSON.stringify(freshProfile));
                         }
                     }
                 }
@@ -54,14 +54,14 @@ export const AuthProvider = ({ children }) => {
             if (result.user) {
                 const userObj = { id: result.user.id, email: result.user.email };
                 setUser(userObj);
-                localStorage.setItem('hcf_user', JSON.stringify(userObj));
+                localStorage.setItem('isantuni_user', JSON.stringify(userObj));
 
                 // Profile handling (Flat vs Nested)
                 const userProfile = result.user.profile || result.user;
                 if (userProfile) {
                     setProfile(userProfile);
                     setRole(userProfile.role || 'editor');
-                    localStorage.setItem('hcf_profile', JSON.stringify(userProfile));
+                    localStorage.setItem('isantuni_profile', JSON.stringify(userProfile));
                 }
             }
             setLoading(false);
@@ -79,9 +79,9 @@ export const AuthProvider = ({ children }) => {
             setUser(null);
             setRole(null);
             setProfile(null);
-            localStorage.removeItem('hcf_user');
-            localStorage.removeItem('hcf_role');
-            localStorage.removeItem('hcf_profile');
+            localStorage.removeItem('isantuni_user');
+            localStorage.removeItem('isantuni_role');
+            localStorage.removeItem('isantuni_profile');
             setLoading(false);
             return { error: null };
         } catch (error) {

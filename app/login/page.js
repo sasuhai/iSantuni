@@ -82,8 +82,8 @@ export default function LoginPage() {
             console.log("LoginPage: SignIn result:", result);
 
             if (result.error) {
-                console.error("LoginPage: Login failed:", result.error);
-                setError('Email atau kata laluan tidak sah. Sila cuba lagi.');
+                console.log("LoginPage: Login attempted but failed:", result.error);
+                setError(result.error);
                 setLoading(false);
             } else {
                 console.log("LoginPage: Login success. User:", result.user?.email);
