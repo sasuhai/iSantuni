@@ -33,44 +33,64 @@ export async function POST(request) {
             VALUES (UUID(), ?, ?, ?, NOW())
         `, [email, resetToken, expiresAt]);
 
-        // Send email using Hostinger SMTP
+        // Initialize transporter
         const transporter = nodemailer.createTransport({
             host: process.env.SMTP_HOST || 'smtp.hostinger.com',
-            port: process.env.SMTP_PORT || 465,
-            secure: true, // true for 465, false for other ports
+            port: parseInt(process.env.SMTP_PORT || '465'),
+            secure: true,
             auth: {
                 user: process.env.SMTP_USER,
                 pass: process.env.SMTP_PASS,
             },
+            tls: {
+                rejectUnauthorized: false // Often needed for shared hosting
+            }
         });
+
+        // Verify connection configuration
+        try {
+            await transporter.verify();
+            console.log('SMTP connection verified');
+        } catch (smtpConfigError) {
+            console.error('SMTP Config Error:', smtpConfigError);
+            return NextResponse.json({ error: 'Ralat Konfigurasi Email: Gagal menyambung ke pelayan SMTP.' }, { status: 500 });
+        }
 
         // Use custom host if deployed, otherwise localhost
         const appUrl = process.env.NEXT_PUBLIC_APP_URL || 'http://localhost:3000';
         const resetLink = `${appUrl}/login?token=${resetToken}&email=${encodeURIComponent(email)}`;
 
-        await transporter.sendMail({
-            from: process.env.SMTP_FROM || `"Admin iSantuni" <${process.env.SMTP_USER}>`,
-            to: email,
-            subject: 'Reset Kata Laluan - iSantuni',
-            html: `
-                <div style="font-family: Arial, sans-serif; max-w: 600px; margin: 0 auto; color: #333;">
-                    <h2 style="color: #059669;">Menetapkan Semula Kata Laluan</h2>
-                    <p>Hai ${user.name || 'Pengguna'},</p>
-                    <p>Kami menerima permohonan untuk menetapkan semula kata laluan anda bagi sistem HCF iSantuni.</p>
-                    <p>Sila klik butang di bawah untuk menukar kata laluan anda:</p>
-                    <a href="${resetLink}" style="display: inline-block; padding: 12px 24px; background-color: #059669; color: white; text-decoration: none; border-radius: 6px; margin: 25px 0; font-weight: bold;">Reset Kata Laluan</a>
-                    <p>Pautan ini sah selama <strong>1 jam</strong> dari sekarang.</p>
-                    <p>Jika anda tidak membuat permohonan ini, anda boleh mengabaikan emel ini. Kata laluan anda tidak akan ditukar.</p>
-                    <hr style="border: 0; border-top: 1px solid #eaeaea; margin: 30px 0;" />
-                    <p style="color: #888; font-size: 13px;">Terima kasih,<br>Pasukan Sistem HCF iSantuni</p>
-                </div>
-            `,
-        });
+        try {
+            await transporter.sendMail({
+                from: process.env.SMTP_FROM || `"Admin iSantuni" <${process.env.SMTP_USER}>`,
+                to: email,
+                subject: 'Reset Kata Laluan - iSantuni',
+                html: `
+                    <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto; color: #333; padding: 20px; border: 1px solid #eee; border-radius: 10px;">
+                        <h2 style="color: #059669;">Menetapkan Semula Kata Laluan</h2>
+                        <p>Hai <strong>${user.name || 'Pengguna'}</strong>,</p>
+                        <p>Kami menerima permohonan untuk menetapkan semula kata laluan anda bagi sistem iSantuni.</p>
+                        <p>Sila klik butang di bawah untuk menukar kata laluan anda:</p>
+                        <div style="text-align: center;">
+                            <a href="${resetLink}" style="display: inline-block; padding: 14px 30px; background-color: #10b981; color: white; text-decoration: none; border-radius: 8px; margin: 25px 0; font-weight: bold; font-size: 16px;">Reset Kata Laluan</a>
+                        </div>
+                        <p style="font-size: 14px; color: #666;">Pautan ini sah selama <strong>1 jam</strong> dari sekarang.</p>
+                        <p style="font-size: 14px; color: #666;">Jika anda tidak membuat permohonan ini, anda boleh mengabaikan emel ini. Kata laluan anda tidak akan ditukar.</p>
+                        <hr style="border: 0; border-top: 1px solid #eee; margin: 30px 0;" />
+                        <p style="color: #999; font-size: 12px; text-align: center;">Terima kasih,<br>Pasukan Sistem HCF iSantuni</p>
+                    </div>
+                `,
+            });
+            console.log('Reset email sent successfully to:', email);
+        } catch (mailError) {
+            console.error('Nodemailer Error:', mailError);
+            return NextResponse.json({ error: 'Gagal menghantar emel: ' + mailError.message }, { status: 500 });
+        }
 
         return NextResponse.json({ success: true, message: 'Pautan reset berjaya dihantar.' });
 
     } catch (error) {
         console.error('Reset Password API Error:', error);
-        return NextResponse.json({ error: 'Ralat Pelayan: Gagal menghantar emel. Sila pastikan SMTP dikonfigurasi dengan betul.' }, { status: 500 });
+        return NextResponse.json({ error: 'Ralat Pelayan: ' + error.message }, { status: 500 });
     }
 }

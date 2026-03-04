@@ -108,7 +108,7 @@ export default function LoginPage() {
         try {
             const result = await resetPassword(resetEmail);
             if (result.error) {
-                setResetStatus({ error: 'Gagal menghantar email. Pastikan alamat email sah.', success: '' });
+                setResetStatus({ error: result.error, success: '' });
             } else {
                 setResetStatus({
                     error: '',
