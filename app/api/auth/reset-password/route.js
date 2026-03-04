@@ -33,15 +33,26 @@ export async function POST(request) {
             VALUES (UUID(), ?, ?, ?, NOW())
         `, [email, resetToken, expiresAt]);
 
-        // Initialize transporter
+        // Initialize transporter with environment variables or safe defaults
+        const smtpHost = process.env.SMTP_HOST || 'smtp.hostinger.com';
         const smtpPort = parseInt(process.env.SMTP_PORT || '465');
+        const smtpUser = process.env.SMTP_USER;
+        const smtpPass = process.env.SMTP_PASS;
+
+        if (!smtpUser || !smtpPass) {
+            console.error('CRITICAL: SMTP credentials (USER/PASS) are missing in environment variables.');
+            return NextResponse.json({
+                error: 'Ralat Pelayan: Konfigurasi emel tidak lengkap di pihak pelayan. (Missing credentials)'
+            }, { status: 500 });
+        }
+
         const transporter = nodemailer.createTransport({
-            host: process.env.SMTP_HOST || 'smtp.hostinger.com',
+            host: smtpHost,
             port: smtpPort,
-            secure: smtpPort === 465, // true for 465, false for other ports (like 587)
+            secure: smtpPort === 465,
             auth: {
-                user: process.env.SMTP_USER,
-                pass: process.env.SMTP_PASS,
+                user: smtpUser,
+                pass: smtpPass,
             },
             tls: {
                 rejectUnauthorized: false
@@ -51,11 +62,11 @@ export async function POST(request) {
         // Verify connection configuration
         try {
             await transporter.verify();
-            console.log('SMTP connection verified');
+            console.log('SMTP connection verified successfully');
         } catch (smtpConfigError) {
             console.error('SMTP Config Error:', smtpConfigError);
             return NextResponse.json({
-                error: `Ralat Konfigurasi Email: Gagal menyambung ke ${process.env.SMTP_HOST}:${smtpPort} - ${smtpConfigError.message}`
+                error: `Ralat Konfigurasi Email: Gagal menyambung ke ${smtpHost}:${smtpPort} - ${smtpConfigError.message}`
             }, { status: 500 });
         }
 
