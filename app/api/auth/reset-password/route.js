@@ -34,16 +34,17 @@ export async function POST(request) {
         `, [email, resetToken, expiresAt]);
 
         // Initialize transporter
+        const smtpPort = parseInt(process.env.SMTP_PORT || '465');
         const transporter = nodemailer.createTransport({
             host: process.env.SMTP_HOST || 'smtp.hostinger.com',
-            port: parseInt(process.env.SMTP_PORT || '465'),
-            secure: true,
+            port: smtpPort,
+            secure: smtpPort === 465, // true for 465, false for other ports (like 587)
             auth: {
                 user: process.env.SMTP_USER,
                 pass: process.env.SMTP_PASS,
             },
             tls: {
-                rejectUnauthorized: false // Often needed for shared hosting
+                rejectUnauthorized: false
             }
         });
 
@@ -53,7 +54,9 @@ export async function POST(request) {
             console.log('SMTP connection verified');
         } catch (smtpConfigError) {
             console.error('SMTP Config Error:', smtpConfigError);
-            return NextResponse.json({ error: 'Ralat Konfigurasi Email: Gagal menyambung ke pelayan SMTP.' }, { status: 500 });
+            return NextResponse.json({
+                error: `Ralat Konfigurasi Email: Gagal menyambung ke ${process.env.SMTP_HOST}:${smtpPort} - ${smtpConfigError.message}`
+            }, { status: 500 });
         }
 
         // Use custom host if deployed, otherwise localhost
