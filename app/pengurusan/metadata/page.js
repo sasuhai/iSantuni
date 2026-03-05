@@ -33,10 +33,13 @@ import {
     Users,
     Search,
     Activity,
-    ChevronDown
+    ChevronDown,
+    Clock,
+    Terminal
 } from 'lucide-react';
 
 const TABS = [
+    { id: 'deploy_log', name: 'Log Deployment', icon: Clock, table: 'deploy_log' },
     { id: 'states', name: 'Negeri', icon: Globe, table: 'states' },
     { id: 'locations', name: 'Sub Lokasi', icon: MapPin, table: 'locations' },
     { id: 'class_levels', name: 'Tahap Kelas', icon: Layers, table: 'class_levels' },
@@ -84,6 +87,21 @@ export default function MetadataManagementPage() {
 
     const fetchData = async () => {
         setLoading(true);
+
+        if (activeTab.id === 'deploy_log') {
+            try {
+                const response = await fetch('/api/admin/deploy-history');
+                const data = await response.json();
+                if (data.history) {
+                    setItems(data.history.map((line, idx) => ({ id: `log-${idx}`, name: line })));
+                }
+            } catch (err) {
+                console.error(err);
+            }
+            setLoading(false);
+            return;
+        }
+
         const orderFields = activeTab.id === 'program_types' ? ['groups', 'name'] : ['name'];
         const { data, error } = await getLookupData(activeTab.table, orderFields);
         if (!error) {
@@ -191,13 +209,15 @@ export default function MetadataManagementPage() {
                             </div>
                         </div>
 
-                        <button
-                            onClick={() => handleOpenModal()}
-                            className="btn-primary flex items-center space-x-2 px-6 py-2.5 shadow-sm hover:shadow-md transition-all"
-                        >
-                            <Plus className="w-5 h-5" />
-                            <span>Tambah {activeTab.name}</span>
-                        </button>
+                        {activeTab.id !== 'deploy_log' && (
+                            <button
+                                onClick={() => handleOpenModal()}
+                                className="btn-primary flex items-center space-x-2 px-6 py-2.5 shadow-sm hover:shadow-md transition-all"
+                            >
+                                <Plus className="w-5 h-5" />
+                                <span>Tambah {activeTab.name}</span>
+                            </button>
+                        )}
                     </div>
 
                     <div className="grid grid-cols-1 lg:grid-cols-4 gap-8">
@@ -206,6 +226,25 @@ export default function MetadataManagementPage() {
                             {TABS.filter(t => !['program_status', 'program_categories', 'program_organizers', 'program_types'].includes(t.id)).map((tab) => {
                                 const Icon = tab.icon;
                                 const isActive = activeTab.id === tab.id;
+                                if (tab.id === 'deploy_log') return (
+                                    <div key="deploy-section" className="pb-2">
+                                        <button
+                                            key={tab.id}
+                                            onClick={() => setActiveTab(tab)}
+                                            className={`w-full flex items-center justify-between p-4 rounded-xl transition-all ${isActive
+                                                ? 'bg-slate-800 text-white shadow-lg shadow-slate-200'
+                                                : 'bg-white text-gray-600 hover:bg-slate-50 border border-gray-100'
+                                                }`}
+                                        >
+                                            <div className="flex items-center space-x-3">
+                                                <Terminal className="w-5 h-5" />
+                                                <span className="font-bold">{tab.name}</span>
+                                            </div>
+                                            <ChevronRight className={`w-4 h-4 transition-transform ${isActive ? 'rotate-90' : ''}`} />
+                                        </button>
+                                        <div className="h-px bg-gray-200 w-full mt-4"></div>
+                                    </div>
+                                );
                                 return (
                                     <button
                                         key={tab.id}
@@ -411,22 +450,24 @@ export default function MetadataManagementPage() {
                                                                     </div>
                                                                 </div>
 
-                                                                <div className="flex items-center space-x-1 opacity-100 md:opacity-0 group-hover:opacity-100 transition-opacity ml-4 flex-shrink-0">
-                                                                    <button
-                                                                        onClick={() => handleOpenModal(item)}
-                                                                        className="p-1.5 text-gray-400 hover:text-amber-600 hover:bg-amber-50 rounded-md transition-all"
-                                                                        title="Edit"
-                                                                    >
-                                                                        <Edit2 className="w-3.5 h-3.5" />
-                                                                    </button>
-                                                                    <button
-                                                                        onClick={() => handleDelete(item.id)}
-                                                                        className="p-1.5 text-gray-400 hover:text-red-600 hover:bg-red-50 rounded-md transition-all"
-                                                                        title="Padam"
-                                                                    >
-                                                                        <Trash2 className="w-3.5 h-3.5" />
-                                                                    </button>
-                                                                </div>
+                                                                {activeTab.id !== 'deploy_log' && (
+                                                                    <div className="flex items-center space-x-1 opacity-100 md:opacity-0 group-hover:opacity-100 transition-opacity ml-4 flex-shrink-0">
+                                                                        <button
+                                                                            onClick={() => handleOpenModal(item)}
+                                                                            className="p-1.5 text-gray-400 hover:text-amber-600 hover:bg-amber-50 rounded-md transition-all"
+                                                                            title="Edit"
+                                                                        >
+                                                                            <Edit2 className="w-3.5 h-3.5" />
+                                                                        </button>
+                                                                        <button
+                                                                            onClick={() => handleDelete(item.id)}
+                                                                            className="p-1.5 text-gray-400 hover:text-red-600 hover:bg-red-50 rounded-md transition-all"
+                                                                            title="Padam"
+                                                                        >
+                                                                            <Trash2 className="w-3.5 h-3.5" />
+                                                                        </button>
+                                                                    </div>
+                                                                )}
                                                             </div>
                                                         ))}
                                                 </div>

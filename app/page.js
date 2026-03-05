@@ -5,6 +5,7 @@ import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import { useAuth } from '@/contexts/AuthContext';
 import { getPrograms } from '@/lib/supabase/database';
+import Navbar from '@/components/Navbar';
 import {
   LayoutDashboard,
   Users,
@@ -302,49 +303,44 @@ export default function LandingPage() {
 
   return (
     <div className="min-h-screen bg-slate-50 font-sans selection:bg-yellow-100 selection:text-yellow-900">
+      <Navbar />
 
-      {/* Navigation Bar */}
-      <nav className={`fixed w-full z-50 transition-all duration-300 ${scrolled ? 'bg-white/90 backdrop-blur-md shadow-md py-3' : 'bg-transparent py-6'}`}>
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 flex justify-between items-center">
-          <div className="flex items-center space-x-3">
-            <div className={`transition-all duration-300 ${scrolled ? 'scale-90' : 'scale-100'}`}>
-              <img
-                src="https://hidayahcentre.org.my/wp-content/uploads/2021/06/logo-web2.png"
-                alt="Hidayah Centre Foundation"
-                className="h-10 w-auto object-contain"
-              />
-            </div>
-            <div className={`h-8 w-px bg-gray-300 mx-2 ${scrolled ? 'block' : 'hidden md:block bg-white/30'}`}></div>
-            <span className={`text-xl font-bold tracking-tight ${scrolled ? 'text-gray-900' : 'text-white drop-shadow-md'}`}>
-              iSantuni
-            </span>
-          </div>
-
-          <div className="hidden md:flex items-center space-x-4">
-            {user ? (
-              <div className="flex items-center space-x-4">
-                <span className={`text-sm font-medium ${scrolled ? 'text-gray-600' : 'text-white/90'}`}>
-                  {user.email}
-                </span>
+      {/* Navigation Bar (Only for non-logged-in users) */}
+      {!user && (
+        <nav className={`fixed w-full z-50 transition-all duration-300 ${scrolled ? 'bg-white/90 backdrop-blur-md shadow-md py-3' : 'bg-transparent py-6'}`}>
+          <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 flex justify-between items-center">
+            <div className="flex items-center space-x-3">
+              <div className={`transition-all duration-300 ${scrolled ? 'scale-90' : 'scale-100'}`}>
+                <img
+                  src="https://hidayahcentre.org.my/wp-content/uploads/2021/06/logo-web2.png"
+                  alt="Hidayah Centre Foundation"
+                  className="h-10 w-auto object-contain"
+                />
               </div>
-            ) : (
+              <div className={`h-8 w-px bg-gray-300 mx-2 ${scrolled ? 'block' : 'hidden md:block bg-white/30'}`}></div>
+              <span className={`text-xl font-bold tracking-tight ${scrolled ? 'text-gray-900' : 'text-white drop-shadow-md'}`}>
+                iSantuni
+              </span>
+            </div>
+
+            <div className="hidden md:flex items-center space-x-4">
               <Link href="/login">
                 <button className={`group flex items-center space-x-2 px-6 py-2 rounded-full font-medium transition-all shadow-lg hover:-translate-y-0.5 ${scrolled ? 'bg-gray-900 text-white hover:bg-gray-800' : 'bg-white text-yellow-900 hover:bg-gray-50'}`}>
                   <LogIn className="w-4 h-4" />
                   <span>Log Masuk</span>
                 </button>
               </Link>
-            )}
-          </div>
+            </div>
 
-          {/* Mobile Menu Button */}
-          <div className="md:hidden flex items-center">
-            <button onClick={() => setMobileMenuOpen(!mobileMenuOpen)} className={`p-2 rounded-md ${scrolled ? 'text-gray-800' : 'text-white'}`}>
-              {mobileMenuOpen ? <X className="h-6 w-6" /> : <Menu className="h-6 w-6" />}
-            </button>
+            {/* Mobile Menu Button */}
+            <div className="md:hidden flex items-center">
+              <button onClick={() => setMobileMenuOpen(!mobileMenuOpen)} className={`p-2 rounded-md ${scrolled ? 'text-gray-800' : 'text-white'}`}>
+                {mobileMenuOpen ? <X className="h-6 w-6" /> : <Menu className="h-6 w-6" />}
+              </button>
+            </div>
           </div>
-        </div>
-      </nav>
+        </nav>
+      )}
 
       {/* Hero Section */}
       <section className="relative min-h-[90vh] flex items-center pt-20 overflow-hidden">
