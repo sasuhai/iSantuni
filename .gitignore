@@ -32,3 +32,9 @@ yarn-error.log*
 # typescript
 *.tsbuildinfo
 next-env.d.ts
+
+# credentials and secrets
+/scripts/serviceAccountKey.json
+/scripts/*.json
+!/scripts/package.json
+!/scripts/package-lock.json

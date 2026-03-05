@@ -6,7 +6,10 @@
     "dev": "next dev",
     "build": "next build",
     "start": "next start",
-    "lint": "next lint"
+    "lint": "next lint",
+    "deploy": "./scripts/deploy.sh",
+    "deploy:history": "./scripts/deploy_history.sh",
+    "backup:prod": "./scripts/backup_production.sh"
   },
   "dependencies": {
     "@fullcalendar/core": "^6.1.20",
