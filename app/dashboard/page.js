@@ -68,8 +68,8 @@ export default function DashboardPage() {
     // Last 12 months for default monthly view
     const lastYear = new Date();
     lastYear.setFullYear(lastYear.getFullYear() - 1);
-    const [monthFrom, setMonthFrom] = useState(`${lastYear.getFullYear()}-${String(lastYear.getMonth() + 1).padStart(2, '0')}`);
-    const [monthTo, setMonthTo] = useState(`${new Date().getFullYear()}-${String(new Date().getMonth() + 1).padStart(2, '0')}`);
+    const [monthFrom, setMonthFrom] = useState(`${lastYear.getFullYear()}-01`);
+    const [monthTo, setMonthTo] = useState(`${new Date().getFullYear()}-12`);
 
     useEffect(() => {
         if (authLoading) return;
@@ -457,7 +457,7 @@ export default function DashboardPage() {
                                 <p className="text-slate-500 font-medium text-sm">Jumlah Kelas</p>
                                 <div className="flex items-baseline space-x-2">
                                     <h3 className="text-4xl font-bold text-slate-900 mt-1">
-                                        {stats?.classes.total.toLocaleString()}
+                                        {stats?.classes?.total?.toLocaleString() || '0'}
                                     </h3>
                                     <span className="text-xs text-slate-400 font-medium">Aktif</span>
                                 </div>
@@ -480,7 +480,7 @@ export default function DashboardPage() {
                                 <p className="text-slate-500 font-medium text-sm">Jumlah Petugas</p>
                                 <div className="flex items-baseline space-x-2">
                                     <h3 className="text-4xl font-bold text-slate-900 mt-1">
-                                        {stats?.workers.total.toLocaleString()}
+                                        {stats?.workers?.total?.toLocaleString() || '0'}
                                     </h3>
                                     <span className="text-xs text-slate-400 font-medium">Staf</span>
                                 </div>
@@ -582,7 +582,7 @@ export default function DashboardPage() {
                                         fill="#10B981"
                                         radius={[8, 8, 8, 8]}
                                         barSize={trendView === 'yearly' ? 40 : 25}
-                                        label={{ position: 'top', fill: '#10B981', fontSize: 10, fontWeight: 'bold', offset: 8 }}
+                                        label={currentTrendData?.length < 15 ? { position: 'top', fill: '#10B981', fontSize: 10, fontWeight: 'bold', offset: 8 } : false}
                                     />
                                     <Bar
                                         dataKey="conversions"
@@ -590,7 +590,7 @@ export default function DashboardPage() {
                                         fill="#3B82F6"
                                         radius={[8, 8, 8, 8]}
                                         barSize={trendView === 'yearly' ? 40 : 25}
-                                        label={{ position: 'top', fill: '#3B82F6', fontSize: 10, fontWeight: 'bold', offset: 8 }}
+                                        label={currentTrendData?.length < 15 ? { position: 'top', fill: '#3B82F6', fontSize: 10, fontWeight: 'bold', offset: 8 } : false}
                                     />
                                     {mainAvgReg > 0 && (
                                         <ReferenceLine y={mainAvgReg} label={{ position: 'right', value: `Purata Pendaftaran: ${mainAvgReg}`, fill: '#10B981', fontSize: 10, fontWeight: 'bold' }} stroke="#10B981" strokeDasharray="3 3" />

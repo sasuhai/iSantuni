@@ -1,46 +1,71 @@
 import { NextResponse } from 'next/server';
 import { query } from '@/lib/db';
+import crypto from 'crypto';
 
 export async function GET(request) {
     try {
         const { searchParams } = new URL(request.url);
         const id = searchParams.get('id');
 
+        const safeParse = (val) => {
+            if (!val) return null;
+            if (typeof val !== 'string') return val;
+            try { return JSON.parse(val); } catch (e) { return val; }
+        };
+
         if (id) {
-            const results = await query('SELECT * FROM submissions WHERE id = ?', [id]);
+            const results = await query('SELECT * FROM mualaf WHERE id = ?', [id]);
             if (results.length === 0) return NextResponse.json({ error: 'Not found' }, { status: 404 });
 
             const row = results[0];
             return NextResponse.json({
                 ...row,
-                gambarIC: row.gambarIC ? (typeof row.gambarIC === 'string' ? JSON.parse(row.gambarIC) : row.gambarIC) : null,
-                gambarKadIslam: row.gambarKadIslam ? (typeof row.gambarKadIslam === 'string' ? JSON.parse(row.gambarKadIslam) : row.gambarKadIslam) : null,
-                gambarSijilPengislaman: row.gambarSijilPengislaman ? (typeof row.gambarSijilPengislaman === 'string' ? JSON.parse(row.gambarSijilPengislaman) : row.gambarSijilPengislaman) : null,
-                gambarMualaf: row.gambarMualaf ? (typeof row.gambarMualaf === 'string' ? JSON.parse(row.gambarMualaf) : row.gambarMualaf) : null,
-                gambarSesiPengislaman: row.gambarSesiPengislaman ? (typeof row.gambarSesiPengislaman === 'string' ? JSON.parse(row.gambarSesiPengislaman) : row.gambarSesiPengislaman) : null,
-                pengislamanKPI: row.pengislamanKPI ? (typeof row.pengislamanKPI === 'string' ? JSON.parse(row.pengislamanKPI) : row.pengislamanKPI) : {}
+                gambarIC: safeParse(row.gambarIC),
+                gambarKadIslam: safeParse(row.gambarKadIslam),
+                gambarSijilPengislaman: safeParse(row.gambarSijilPengislaman),
+                gambarMualaf: safeParse(row.gambarMualaf),
+                gambarSesiPengislaman: safeParse(row.gambarSesiPengislaman),
+                pengislamanKPI: safeParse(row.pengislamanKPI) || {}
             });
         }
 
         // Handle full list with filters
         const status = searchParams.get('status') || 'active';
-        const results = await query('SELECT * FROM submissions WHERE status = ? ORDER BY createdAt DESC', [status]);
+        const limitInt = parseInt(searchParams.get('limit')) || 1000;
+        const offsetInt = parseInt(searchParams.get('offset')) || 0;
+
+        let sql = 'SELECT * FROM mualaf WHERE status = ?';
+        let params = [status];
+
+        const countResult = await query('SELECT COUNT(*) as count FROM mualaf WHERE status = ?', [status]);
+        const totalCount = countResult[0].count;
+
+        sql += ' ORDER BY createdAt DESC LIMIT ? OFFSET ?';
+        params.push(limitInt, offsetInt);
+
+        const results = await query(sql, params);
 
         // Parse JSON fields
         const parsedResults = results.map(row => ({
             ...row,
-            gambarIC: row.gambarIC ? (typeof row.gambarIC === 'string' ? JSON.parse(row.gambarIC) : row.gambarIC) : null,
-            gambarKadIslam: row.gambarKadIslam ? (typeof row.gambarKadIslam === 'string' ? JSON.parse(row.gambarKadIslam) : row.gambarKadIslam) : null,
-            gambarSijilPengislaman: row.gambarSijilPengislaman ? (typeof row.gambarSijilPengislaman === 'string' ? JSON.parse(row.gambarSijilPengislaman) : row.gambarSijilPengislaman) : null,
-            gambarMualaf: row.gambarMualaf ? (typeof row.gambarMualaf === 'string' ? JSON.parse(row.gambarMualaf) : row.gambarMualaf) : null,
-            gambarSesiPengislaman: row.gambarSesiPengislaman ? (typeof row.gambarSesiPengislaman === 'string' ? JSON.parse(row.gambarSesiPengislaman) : row.gambarSesiPengislaman) : null,
-            pengislamanKPI: row.pengislamanKPI ? (typeof row.pengislamanKPI === 'string' ? JSON.parse(row.pengislamanKPI) : row.pengislamanKPI) : {}
+            gambarIC: safeParse(row.gambarIC),
+            gambarKadIslam: safeParse(row.gambarKadIslam),
+            gambarSijilPengislaman: safeParse(row.gambarSijilPengislaman),
+            gambarMualaf: safeParse(row.gambarMualaf),
+            gambarSesiPengislaman: safeParse(row.gambarSesiPengislaman),
+            pengislamanKPI: safeParse(row.pengislamanKPI) || {}
         }));
 
-        return NextResponse.json(parsedResults);
+        // To mimic Supabase response structure with count
+        // Note: we usually return a simple array, but some callers expect data/count
+        return NextResponse.json(parsedResults, {
+            headers: {
+                'x-total-count': totalCount.toString()
+            }
+        });
 
     } catch (error) {
-        console.error('GET submissions Error:', error);
+        console.error('GET mualaf Error:', error);
         return NextResponse.json({ error: 'Internal server error' }, { status: 500 });
     }
 }
@@ -57,7 +82,7 @@ export async function POST(request) {
             return val;
         });
 
-        const sql = `INSERT INTO submissions (id, ${columns.join(', ')}, createdAt, updatedAt) 
+        const sql = `INSERT INTO mualaf (id, ${columns.join(', ')}, createdAt, updatedAt) 
                  VALUES (?, ${columns.map(() => '?').join(', ')}, NOW(), NOW())`;
 
         await query(sql, [id, ...values]);
@@ -85,7 +110,7 @@ export async function PUT(request) {
         });
 
         const setClause = columns.map(col => `${col} = ?`).join(', ');
-        const sql = `UPDATE submissions SET ${setClause}, updatedAt = NOW() WHERE id = ?`;
+        const sql = `UPDATE mualaf SET ${setClause}, updatedAt = NOW() WHERE id = ?`;
 
         await query(sql, [...values, id]);
 
@@ -104,7 +129,7 @@ export async function DELETE(request) {
         if (!id) return NextResponse.json({ error: 'ID is required' }, { status: 400 });
 
         // Soft delete
-        await query("UPDATE submissions SET status = 'deleted', deletedAt = NOW() WHERE id = ?", [id]);
+        await query("UPDATE mualaf SET status = 'deleted', deletedAt = NOW() WHERE id = ?", [id]);
 
         return NextResponse.json({ message: 'Deleted successfully' });
 
